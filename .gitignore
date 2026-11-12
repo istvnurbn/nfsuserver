@@ -1,3 +1,42 @@
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+.env
+*.mdb
+
+# Thumbnails
+Thumbs.db
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Ignore build outputs from performing a nix-build or `nix build` command
+result
+result-*
+
+# Ignore automatically generated direnv output
+.direnv
+
+# Ignore NixOS interactive test driver history
+**/.nixos-test-history
+
+# Claude Code local/session state
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Zed project-local overrides
+.zed/
+
+# Original content
+
 .vs
 Debug
 Release
