@@ -104,6 +104,16 @@ The server requires the following ports to be forwarded:
 
 The race itself is played peer to peer between the games of the players and does not pass through the server. For that the player who hosts needs port 3658 UDP, see [Client Configuration](#client-configuration). It is not a port of the server.
 
+### Players in the network of the server
+
+The server tells every game where to find the others, and what it tells depends on who it is for:
+
+* Players on the machine of the server or in its private network (a VPN counts as one) get to know each other by their private addresses.
+* To players outside they are announced with `serverexternalip`. So set it whenever the server is behind a router, also if everybody outside uses the launcher.
+* A player on the machine of the server is announced to the others in its network with the address they reach the server on, not with `127.0.0.1`.
+
+For a race between players inside and outside, port 3658 UDP has to be forwarded to the machine of the player inside who hosts, not to the server. A router can do that for one machine only.
+
 
 ## Client Configuration
 
@@ -136,6 +146,8 @@ Then start the game without the launcher and continue with step 3. The game now 
 
 * port 10900 TCP of the server has to be reachable, and
 * a server behind NAT needs `serverexternalip` set in `nfsu.conf`.
+
+If the game runs on the machine of the server, use `127.0.0.1`. On another machine in the LAN of a server with `serverexternalip` set, the game is sent to that public address for the lobby and depends on the router letting it back in (NAT loopback).
 
 To host races, port 3658 UDP has to be open in the firewall of your own machine as well, on NixOS with `networking.firewall.allowedUDPPorts = [ 3658 ];`.
 

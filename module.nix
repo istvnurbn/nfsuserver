@@ -148,18 +148,29 @@ in
             default = "";
             example = "203.0.113.7";
             description = ''
-              Public IPv4 address of the server. A game that is pointed
-              straight at this server (a hosts entry for `ps2nfs04.ea.com`
-              instead of the launcher) first asks the redirector on port 10900
-              where the lobby is. Left empty, the answer is the local address
-              that connection arrived on, which is only right if the public
-              address is configured on an interface of this host.
+              Public IPv4 address of the server. Set it whenever the server
+              sits behind NAT: a port forward on a home router, or a cloud
+              provider that maps a public address to a private one. It is used
+              for two things.
 
-              Set this whenever the server sits behind NAT: a port forward on
-              a home router, or a cloud provider that maps a public address
-              to a private one. Games on the same LAN as the server are then
-              sent to the public address as well. Players using the launcher
-              are not affected, it does the redirecting itself.
+              A game that is pointed straight at this server (a hosts entry
+              for `ps2nfs04.ea.com` instead of the launcher) first asks the
+              redirector on port 10900 where the lobby is, and is sent to this
+              address. Left empty, the answer is the local address that
+              connection arrived on, which is only right if the public address
+              is configured on an interface of this host. A game on the
+              machine of the server is always sent to the address it used. A
+              game on another machine in the LAN is sent to the public address
+              like everybody else and depends on the router letting it back in
+              (NAT loopback); the launcher avoids that, it does the
+              redirecting itself.
+
+              The games race each other directly, and the server tells them
+              where the others are. Players on the machine or in the private
+              network of the server are announced to players outside with this
+              address, instead of one like `127.0.0.1` or `192.168.1.10` that
+              is of no use there. Among themselves they get to know each other
+              by their private addresses.
             '';
           };
 
