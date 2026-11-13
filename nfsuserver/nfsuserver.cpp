@@ -7620,7 +7620,7 @@ threadfunc ListenerWorker(void *Dummy){
 								sprintf(arr2[10], "SYSFLAGS=%u", game->sysflags);
 								sprintf(arr2[11], "OPID0=%u", game->Users.First->User->id);
 								sprintf(arr2[12], "OPPO0=%s", game->Users.First->User->Personas[game->Users.First->User->SelectedPerson]);
-								sprintf(arr2[13], "ADDR0=%s", game->Users.First->User->IP);
+								sprintf(arr2[13], "ADDR0=%s", AddrFor(game->Users.First->User, user));
 
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "gget", arr, 14));
 							}
@@ -7780,7 +7780,7 @@ threadfunc ListenerWorker(void *Dummy){
 
 							room->RefreshUser(user, buffer);
 
-							BroadCastCommand(room->Users, "+agm", arr, 14, buffer);
+							game->BroadCast(room->Users, "+agm", 14, buffer);
 						}
 						break;
 					}
@@ -8155,7 +8155,7 @@ threadfunc ListenerWorker(void *Dummy){
 								sprintf(arr2[6], "P=10");
 								sprintf(arr2[7], "A=%s", user->IP);
 
-								BroadCastCommand(&Server.Users, "+rom", arr, 8, buffer);
+								BroadCastCommand(&Server.Users, "+rom", arr, 8, buffer, user, 7);
 
 								sprintf(arr2[0], "PI=%u", user->id);
 								sprintf(arr2[1], "N=%s", user->Personas[user->SelectedPerson]);

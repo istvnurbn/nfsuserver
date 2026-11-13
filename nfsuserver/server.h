@@ -210,6 +210,8 @@ public:
 	void RemoveUser(UserClass* user, char* buffer);
 	void SendInfoToUser(UserClass* user, char* buffer);
 	void StartGame(char* buffer);
+	void FillAddresses(UserClass* to);
+	void BroadCast(RUsersClass& users, char* command, int paramcount, char* buffer);
 	GameClass* Next;
 };
 
@@ -298,6 +300,9 @@ bool SendCommand(SOCKET sock, char* command, char* params[], int paramcount);
 int MakeCommand(char* buffer, char* command, char* params[], int paramcount);
 void BroadCastCommand(UsersClass* users, char* command, char* params[], int paramcount, char* buffer);
 void BroadCastCommand(RUsersClass& users, char* command, char* params[], int paramcount, char* buffer);
+void BroadCastCommand(UsersClass* users, char* command, char* params[], int paramcount, char* buffer, UserClass* about, int addrparam);
+void BroadCastCommand(RUsersClass& users, char* command, char* params[], int paramcount, char* buffer, UserClass* about, int addrparam);
+const char* AddrFor(UserClass* about, UserClass* to);
 int recvn(SOCKET sock, char* buf, int required);
 int atoi2(char* str);
 char* GetPlayerStat(const char* Name);

@@ -7,6 +7,8 @@ extern bool Verbose;
 extern char* arr[30];
 extern char arr2[30][1024];
 
+extern ServerClass Server;
+
 extern std::vector<PlayerStat> PS;
 
 extern char tmpPlayerStat[1000];
@@ -287,6 +289,123 @@ void BroadCastCommand(UsersClass* users, char* command, char* params[], int para
 	}
 };
 
+/*
+* Which address of a player to hand out.
+*
+* The games of the players talk to each other directly, and the server tells
+* them where to find each other. All it knows about a player is the address the
+* connection to the server came from, and that address is of no use to a player
+* in another network: someone playing on the machine of the server shows up as
+* 127.0.0.1, and someone in the LAN of the server with a private address that
+* nobody on the internet can reach. So the address depends on who it is for.
+*/
+
+// 127.0.0.0/8, the private networks (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16),
+// link local (169.254.0.0/16) and the carrier NAT range (100.64.0.0/10) that
+// VPNs like Tailscale use as well. addr is in network byte order.
+static bool IsInternal(uint32_t addr) {
+	uint32_t a = ntohl(addr);
+
+	return (a >> 24) == 127 || (a >> 24) == 10 || (a >> 20) == 0xAC1 || (a >> 16) == 0xC0A8
+		|| (a >> 16) == 0xA9FE || (a >> 22) == 0x191;
+};
+
+// A connection from the machine of the server itself: it comes over the loopback
+// device, or it has the same address on both ends.
+static bool IsOnServer(ConnectionClass* con) {
+	return con != NULL && (con->remote_ip.sin_addr.s_addr == con->local_ip.sin_addr.s_addr
+		|| (ntohl(con->remote_ip.sin_addr.s_addr) >> 24) == 127);
+};
+
+// A player who is being removed has no connection anymore, so the loopback
+// device has to be recognised without one.
+static bool IsOnServer(UserClass* user) {
+	return (ntohl(inet_addr(user->IP)) >> 24) == 127 || IsOnServer(user->Connection);
+};
+
+// The address of the player `about` as the player `to` has to use it.
+const char* AddrFor(UserClass* about, UserClass* to) {
+	if (to == NULL || to == about) return about->IP;
+
+	bool toInside = IsOnServer(to) || IsInternal(inet_addr(to->IP));
+
+	if (IsOnServer(about)) {
+		if (IsOnServer(to)) return about->IP;
+
+		// everybody else finds this player where they find the server
+		if (!toInside && Server.ServerExternalIP[0] != '\0') return Server.ServerExternalIP;
+		if (to->Connection != NULL) return inet_ntoa(to->Connection->local_ip.sin_addr);
+
+		return about->IP;
+	}
+
+	// a public address is good for everybody, and players inside reach each other directly
+	if (!IsInternal(inet_addr(about->IP)) || toInside) return about->IP;
+
+	// `about` is inside and `to` is not: hand out the public address of the server
+	if (Server.ServerExternalIP[0] != '\0') return Server.ServerExternalIP;
+	if (to->Connection != NULL && !IsInternal(to->Connection->local_ip.sin_addr.s_addr))
+		return inet_ntoa(to->Connection->local_ip.sin_addr);
+
+	return about->IP;
+};
+
+// BroadCastCommand() for a message in which parameter `addrparam` is the address
+// ("A=...") of the player `about`: every receiver gets the one meant for it.
+void BroadCastCommand(RUsersClass& users, char* command, char* params[], int paramcount, char* buffer, UserClass* about, int addrparam) {
+	RUserClass* tmp = users.First;
+
+	while (tmp != NULL) {
+		if (tmp->User->Connection != NULL) {
+			sprintf(params[addrparam], "A=%s", AddrFor(about, tmp->User));
+			tmp->User->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, command, params, paramcount));
+		}
+		tmp = tmp->Next;
+	}
+
+	sprintf(params[addrparam], "A=%s", about->IP);
+};
+
+void BroadCastCommand(UsersClass* users, char* command, char* params[], int paramcount, char* buffer, UserClass* about, int addrparam) {
+	UserClass* tmp = users->First;
+
+	while (tmp != NULL) {
+		if (tmp->Connection != NULL) {
+			sprintf(params[addrparam], "A=%s", AddrFor(about, tmp));
+			tmp->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, command, params, paramcount));
+		}
+		tmp = tmp->Next;
+	}
+
+	sprintf(params[addrparam], "A=%s", about->IP);
+};
+
+// Sets the addresses of the players of this game (ADDR0, ADDR1, ... in the
+// parameters of a message about the game) as the player `to` has to use them.
+void GameClass::FillAddresses(UserClass* to) {
+	int l = 0;
+
+	for (RUserClass* ru = Users.First; ru != NULL && 13 + l * 3 < 30; ru = ru->Next) {
+		sprintf(arr2[13 + l * 3], "ADDR%u=%s", l, AddrFor(ru->User, to));
+		l++;
+	}
+};
+
+// BroadCastCommand() for a message about this game
+void GameClass::BroadCast(RUsersClass& users, char* command, int paramcount, char* buffer) {
+	RUserClass* tmp = users.First;
+
+	while (tmp != NULL) {
+		if (tmp->User->Connection != NULL) {
+			FillAddresses(tmp->User);
+			tmp->User->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, command, arr, paramcount));
+		}
+		tmp = tmp->Next;
+	}
+
+	FillAddresses(NULL);
+};
+
 void RoomsClass::AddRoom(RoomClass* room) {
 	Count++;
 	room->Next = NULL;
@@ -506,6 +625,8 @@ void GameClass::SendInfoToUser(UserClass* user, char* buffer) {
 		ru = ru->Next;
 	}
 
+	FillAddresses(user);
+
 	if (user->Connection != NULL)
 		user->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, "+agm", arr, 11 + l * 3));
 };
@@ -553,6 +674,7 @@ void GameClass::RemoveUser(UserClass* user, char* buffer) {
 				}
 
 				if (user->Connection != NULL) {
+					FillAddresses(user);
 					user->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, "glea", arr, 11 + l * 3));
 					user->CurrentRoom->RefreshUser(user, buffer);
 				}
@@ -585,7 +707,7 @@ void GameClass::RemoveUser(UserClass* user, char* buffer) {
 					ru = ru->Next;
 				}
 
-				BroadCastCommand(user->CurrentRoom->Users, "+agm", arr, 11 + l * 3, buffer);
+				BroadCast(user->CurrentRoom->Users, "+agm", 11 + l * 3, buffer);
 			}
 			else {
 				sprintf(arr2[0], "IDENT=%u", ID);
@@ -641,6 +763,8 @@ void GameClass::AddUser(UserClass* user, char* buffer) {
 		ru = ru->Next;
 	}
 
+	FillAddresses(user);
+
 	if (user->Connection) user->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, "gjoi", arr, 11 + l * 3));
 
 	user->CurrentRoom->RefreshUser(user, buffer);
@@ -673,7 +797,7 @@ void GameClass::AddUser(UserClass* user, char* buffer) {
 		l++;
 		ru = ru->Next;
 	}
-	BroadCastCommand(user->CurrentRoom->Users, "+agm", arr, 11 + l * 3, buffer);
+	BroadCast(user->CurrentRoom->Users, "+agm", 11 + l * 3, buffer);
 }
 
 void GameClass::StartGame(char* buffer) {
@@ -713,6 +837,7 @@ void GameClass::StartGame(char* buffer) {
 	SessionClass* session;
 
 	while (ru != NULL) {
+		FillAddresses(ru->User);
 		sprintf(arr2[11 + l * 3], "SEED=%u", k);
 		sprintf(arr2[12 + l * 3], "SELF=%s", ru->User->Personas[ru->User->SelectedPerson]);
 
@@ -734,7 +859,7 @@ void GameClass::StartGame(char* buffer) {
 		ru = ru->Next;
 	}
 
-	BroadCastCommand(Users.First->User->CurrentRoom->Users, "+agm", arr, 11 + l * 3, buffer);
+	BroadCast(Users.First->User->CurrentRoom->Users, "+agm", 11 + l * 3, buffer);
 }
 
 void RoomClass::AddUser(UserClass* user, char* buffer) {
@@ -808,7 +933,7 @@ void RoomClass::RefreshUser(UserClass* user, char* buffer) {
 
 	sprintf(arr2[9], "T=2");
 
-	BroadCastCommand(Users, "+usr", arr, 10, buffer);
+	BroadCastCommand(Users, "+usr", arr, 10, buffer, user, 4);
 };
 
 void RoomClass::RemoveUser(UserClass* user, char* buffer) {
@@ -857,7 +982,7 @@ void RoomClass::ListToUser(UserClass* user, char* buffer) {
 		sprintf(arr2[1], "N=%s", tmp->User->Personas[tmp->User->SelectedPerson]);
 		sprintf(arr2[2], "M=%s", tmp->User->Username);
 		sprintf(arr2[3], "F=H");
-		sprintf(arr2[4], "A=%s", tmp->User->IP);
+		sprintf(arr2[4], "A=%s", AddrFor(tmp->User, user));
 		sprintf(arr2[5], "P=211");
 		sprintf(arr2[6], "S=%s", GetPlayerStat(user->Personas[user->SelectedPerson]));
 		sprintf(arr2[7], "X=%s", tmp->User->car);
