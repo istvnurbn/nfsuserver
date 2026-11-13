@@ -9,6 +9,10 @@
   pkgs ? import <nixpkgs> { },
 }:
 
+let
+  # several games at once that log in from different addresses and race each other
+  lobbyAddresses = "${pkgs.python3.interpreter} ${./tests/lobby_addresses.py}";
+in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
 
@@ -150,6 +154,41 @@ pkgs.testers.runNixOSTest {
         own_address = closed.succeed("ip -4 -o addr show dev eth1 | grep -oP '(?<=inet )[0-9.]+'").strip()
         reply = closed.succeed(ask_redirector.format(own_address))
         assert f"ADDR={own_address}\n" in reply, reply
+
+    with subtest("a game on the machine of the server is not sent out to serverexternalip"):
+        reply = server.succeed(ask_redirector.format("127.0.0.1"))
+        assert "ADDR=127.0.0.1\n" in reply, reply
+        own_address = server.succeed("ip -4 -o addr show dev eth1 | grep -oP '(?<=inet )[0-9.]+'").strip()
+        reply = server.succeed(ask_redirector.format(own_address))
+        assert f"ADDR={own_address}\n" in reply, reply
+
+    with subtest("players are told an address of the others that works from where they are"):
+        # A made up network on the loopback device of both servers: the server
+        # in its LAN (192.168.77.1) and with a public address (198.51.100.1), a
+        # player in that LAN and one on the internet. The third player is on
+        # the machine of the server.
+        for machine in (server, closed):
+            machine.succeed(
+                "for a in 192.168.77.1 192.168.77.10 198.51.100.1 198.51.100.50; do ip addr add $a/32 dev lo; done"
+            )
+        # Behind NAT: the player from the internet arrives at the LAN address
+        # and is given serverexternalip for the two players behind the router.
+        server.succeed(
+            "${lobbyAddresses}"
+            " --player here:127.0.0.1:127.0.0.1 --player lan:192.168.77.10:192.168.77.1 --player out:198.51.100.50:192.168.77.1"
+            " --sees here here=127.0.0.1 lan=192.168.77.10 out=198.51.100.50"
+            " --sees lan here=192.168.77.1 lan=192.168.77.10 out=198.51.100.50"
+            " --sees out here=203.0.113.7 lan=203.0.113.7 out=198.51.100.50"
+        )
+        # No serverexternalip and the public address on the server itself: that
+        # address is given out instead.
+        closed.succeed(
+            "${lobbyAddresses}"
+            " --player here:127.0.0.1:127.0.0.1 --player lan:192.168.77.10:192.168.77.1 --player out:198.51.100.50:198.51.100.1"
+            " --sees here here=127.0.0.1 lan=192.168.77.10 out=198.51.100.50"
+            " --sees lan here=192.168.77.1 lan=192.168.77.10 out=198.51.100.50"
+            " --sees out here=198.51.100.1 lan=198.51.100.1 out=198.51.100.50"
+        )
 
     with subtest("the launcher gets its answers"):
         info = client.succeed("socat -u TCP:server:10800 -")
