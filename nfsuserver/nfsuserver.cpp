@@ -9665,6 +9665,16 @@ bool InitServer(){
 	ClientReportingSocket = socket(AF_INET, SOCK_DGRAM, 0);
 	ClientReportingSocketTcp =  socket(AF_INET, SOCK_STREAM, 0);
 
+#ifndef _WIN32
+	//let the server be restarted while connections of the previous run are still in
+	//TIME_WAIT, otherwise bind() fails with "address already in use" for up to a minute
+	int reuse = 1;
+	setsockopt(RedirectSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+	setsockopt(ListeningSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+	setsockopt(ReportingSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+	setsockopt(ClientReportingSocketTcp, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+#endif
+
 	//binding them to specific ports
 	SOCKADDR_IN localsin;
 	localsin.sin_family = AF_INET;
@@ -10072,6 +10082,9 @@ int main(int argc, char* argv[]){
 
 #ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
+	//line-buffer stdout: when it is not a terminal (systemd journal, docker logs, a pipe)
+	//nothing would show up until 4k of log had piled up, and the tail was lost on exit
+	setvbuf(stdout, NULL, _IOLBF, 0);
 #endif
 
 	EnableLogFile = true;
@@ -10176,11 +10189,13 @@ int main(int argc, char* argv[]){
 		}
 	}	
 #endif
-	if(InitServer()){
+	bool started = InitServer();
+	if(started){
 		while(running){
 			Sleep(10);
 		}
 	}
 	DeInitServer();
-	return 0;
+	//report a failed startup (e.g. a port that could not be bound) to the caller
+	return started ? 0 : 1;
 }
