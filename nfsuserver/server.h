@@ -303,6 +303,7 @@ void BroadCastCommand(RUsersClass& users, char* command, char* params[], int par
 void BroadCastCommand(UsersClass* users, char* command, char* params[], int paramcount, char* buffer, UserClass* about, int addrparam);
 void BroadCastCommand(RUsersClass& users, char* command, char* params[], int paramcount, char* buffer, UserClass* about, int addrparam);
 const char* AddrFor(UserClass* about, UserClass* to);
+const char* LobbyAddrFor(ConnectionClass* con);
 int recvn(SOCKET sock, char* buf, int required);
 int atoi2(char* str);
 char* GetPlayerStat(const char* Name);

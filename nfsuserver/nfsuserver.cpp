@@ -7467,7 +7467,7 @@ threadfunc RedirectorWorker(void *Dummy){
 					sprintf(log, "Adding outgoing message : server_info_to_nfsu : %s\n", inet_ntoa(temp->remote_ip.sin_addr));
 					Log(log);
 				}
-				sprintf(arr2[0], "ADDR=%s", Server.ServerExternalIP[0] != '\0' ? Server.ServerExternalIP : inet_ntoa(temp->local_ip.sin_addr));
+				sprintf(arr2[0], "ADDR=%s", LobbyAddrFor(temp));
 				sprintf(arr2[1], "PORT=10901");
 				sprintf(arr2[2], "SESS=1072010288");
 				sprintf(arr2[3], "MASK=0295f3f70ecb1757cd7001b9a7a5eac8");

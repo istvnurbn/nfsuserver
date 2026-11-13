@@ -323,6 +323,16 @@ static bool IsOnServer(UserClass* user) {
 	return (ntohl(inet_addr(user->IP)) >> 24) == 127 || IsOnServer(user->Connection);
 };
 
+// The address the redirector sends a game to for the lobby: serverexternalip if
+// it is set, otherwise the address the game has just reached the redirector on.
+// A game on the machine of the server always gets the latter. It has no business
+// going out to the router and back in, which not every router does.
+const char* LobbyAddrFor(ConnectionClass* con) {
+	if (Server.ServerExternalIP[0] != '\0' && !IsOnServer(con)) return Server.ServerExternalIP;
+
+	return inet_ntoa(con->local_ip.sin_addr);
+};
+
 // The address of the player `about` as the player `to` has to use it.
 const char* AddrFor(UserClass* about, UserClass* to) {
 	if (to == NULL || to == about) return about->IP;
