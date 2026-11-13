@@ -9747,7 +9747,8 @@ bool InitServer(){
 	strcpy(ReportingConnections.Name, "ReportingConnections");
 
 	//starting threads
-	ConAccParam Redirector, Listener, Reporter;
+	//static: the accept threads keep reading these after InitServer() has returned
+	static ConAccParam Redirector, Listener, Reporter;
 
 	Redirector.Connections=&RedirectConnections;
 	Redirector.sock=RedirectSocket;
