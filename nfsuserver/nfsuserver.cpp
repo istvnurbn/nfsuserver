@@ -7208,7 +7208,7 @@ void Log( char *log ){
     }
 
     if (EnableLogScreen)
-        printf(logtemp);
+        fputs(logtemp, stdout);
 
     if ((logfil != NULL) && (EnableLogFile)){
         fwrite(logtemp, strlen(logtemp), 1, logfil);
@@ -7990,7 +7990,8 @@ threadfunc ListenerWorker(void *Dummy){
 								tmp2 = strchr(tmp, 10);
 								if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
 								tmp2[0] = 0;
-								sprintf(resu, tmp + 5);
+								strncpy(resu, tmp + 5, sizeof(resu) - 1);
+								resu[sizeof(resu) - 1] = 0;
 							}
 							// decode RESU (get dec_resu)
 							base64_out(resu, dec_resu, strlen(resu));
