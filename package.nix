@@ -1,35 +1,54 @@
-{ lib, stdenv }:
+{
+  lib,
+  stdenv,
+}:
 
 stdenv.mkDerivation {
   pname = "nfsuserver";
-  version = "unstable";
+  # NFSU_LAN_VERSION in nfsuserver/nfsuserver.cpp
+  version = "1.0.5";
 
-  src = lib.cleanSource ./.;
+  # Only what the server is built from. Editing the nix files, the README or
+  # the Windows launcher does not cause a rebuild, and logs or *.dat databases
+  # left behind by a local test run never end up in the world-readable store.
+  src = lib.fileset.toSource {
+    root = ./nfsuserver;
+    fileset = lib.fileset.unions [
+      ./nfsuserver/Makefile
+      ./nfsuserver/nfsu.conf
+      ./nfsuserver/news.txt
+      (lib.fileset.fileFilter (file: file.hasExt "cpp" || file.hasExt "h") ./nfsuserver)
+    ];
+  };
 
-  hardeningDisable = [ "format" ];
+  # The Makefile hardcodes `g++` and `-L"/lib"`.
+  makeFlags = [
+    "CC=${stdenv.cc.targetPrefix}c++"
+    "LIBS=-lpthread"
+  ];
 
-  postPatch = ''
-    substituteInPlace nfsuserver/Makefile \
-      --replace-fail '-L"/lib"' ""
-  '';
+  # Pin the dialect this 2004 code base was written for, so a newer default
+  # in a future compiler cannot break the build.
+  env.NIX_CFLAGS_COMPILE = "-std=c++98";
 
-  preBuild = ''
-    cd nfsuserver
-  '';
-
-  NIX_CFLAGS_COMPILE = "-std=c++98 -Wno-narrowing";
+  enableParallelBuilding = true;
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 nfsuserver "$out/bin/nfsuserver"
+
+    install -Dm755 nfsuserver -t "$out/bin"
+    # Reference copies. The server reads nfsu.conf and news.txt from its
+    # working directory, it does not look here by itself.
+    install -Dm644 nfsu.conf news.txt -t "$out/share/nfsuserver"
+
     runHook postInstall
   '';
 
-  meta = with lib; {
-    description = "Need for Speed: Underground server";
+  meta = {
+    description = "Lobby server for Need for Speed: Underground (2003) online and LAN play";
     homepage = "https://github.com/istvnurbn/nfsuserver";
-    license = licenses.mit;
-    platforms = platforms.linux;
+    license = lib.licenses.mit;
+    platforms = lib.platforms.linux;
     mainProgram = "nfsuserver";
   };
 }
