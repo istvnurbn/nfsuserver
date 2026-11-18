@@ -111,7 +111,7 @@ in
       type = types.lines;
       default = "Welcome to ${cfg.settings.servername}!\n";
       defaultText = lib.literalExpression ''"Welcome to ''${config.services.nfsuserver.settings.servername}!\n"'';
-      description = "Text of the news screen in the game (`news.txt`), at most 10 kB.";
+      description = "Text of the news screen in the game (`news.txt`), at most 1000 bytes.";
     };
 
     settings = mkOption {
@@ -255,7 +255,16 @@ in
           services.nfsuserver.settings.${key}: the room names, joined with commas, are
           longer than 63 characters. The server reads them into a 64 byte buffer.
         '';
-      }) roomKeys;
+      }) roomKeys
+      ++ [
+        {
+          assertion = lib.stringLength cfg.news <= 1000;
+          message = ''
+            services.nfsuserver.news is longer than 1000 bytes. The server sends the
+            news in one message of at most 1024 bytes and cuts it off after 1000.
+          '';
+        }
+      ];
 
     networking.firewall = lib.mkIf cfg.openFirewall {
       allowedTCPPorts = tcpPorts;

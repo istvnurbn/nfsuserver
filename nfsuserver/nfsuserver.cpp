@@ -7242,7 +7242,7 @@ void LoadNews(){
     int siz = ftell(fil);
     fseek(fil, 0, SEEK_SET);
 
-    if(siz>10238) siz=10238;
+    if(siz>1000) siz=1000; // the reply has to fit in a 1024 byte message
 
     if (news != NULL)
         free(news);
