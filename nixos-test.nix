@@ -12,6 +12,8 @@
 let
   # several games at once that log in from different addresses and race each other
   lobbyAddresses = "${pkgs.python3.interpreter} ${./tests/lobby_addresses.py}";
+  # messages that a game never sends; the script imports lobby_addresses.py
+  badInput = "${pkgs.python3.interpreter} ${./tests}/bad_input.py";
 in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
@@ -202,6 +204,10 @@ pkgs.testers.runNixOSTest {
 
     with subtest("registerglobal works from inside the sandbox"):
         client.wait_until_succeeds("grep -F 'GET /tracker/submit.php' /tmp/tracker.log", timeout=120)
+
+    with subtest("messages that a game never sends do not bring the server down"):
+        server.succeed("${badInput} 127.0.0.1")
+        assert server.succeed("systemctl show -p NRestarts --value nfsuserver.service").strip() == "0"
 
     with subtest("a restart does not trip over connections in TIME_WAIT"):
         server.succeed("ss -tan | grep -E 'TIME-WAIT.*:109(00|80)'")

@@ -7530,6 +7530,20 @@ threadfunc WebReport(void *dummy){
 	}
 };
 
+// Before auth a connection has no player, so only the commands of the login
+// screen can be handled, and the game commands other than gcre need the player
+// to be in a room. The handlers take both for granted.
+static bool MayHandle(UserClass* user, const char* cmd) {
+	static const char* const loginScreen[] = { "addr", "skey", "sele", "news", "acct", "auth", "~png" };
+
+	if (user == NULL) {
+		for (size_t k = 0; k < sizeof(loginScreen) / sizeof(loginScreen[0]); k++)
+			if (strncmp(cmd, loginScreen[k], 4) == 0) return true;
+		return false;
+	}
+	return user->CurrentRoom != NULL || cmd[0] != 'g' || strncmp(cmd, "gcre", 4) == 0;
+}
+
 threadfunc ListenerWorker(void *Dummy){
 	char log[1024];
 	sprintf(log, "Starting ListenerWorker thread.\n");
@@ -7588,7 +7602,7 @@ threadfunc ListenerWorker(void *Dummy){
 
 				if (LogAllTraffic) LogTraffic(msg->Message, msg->Size);
 
-				switch(buf[0]) {
+				if (MayHandle(user, buf)) switch(buf[0]) {
 				case 'g':
 					switch(buf[1]) {
 					case 'l': //glea
