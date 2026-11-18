@@ -9457,7 +9457,7 @@ void trim(char* s)
 	}
 	// clear spaces from the end
 	i = strlen(s) - 1;
-	while ((s[i] == ' ') || (s[i] == '\t'))
+	while (i >= 0 && ((s[i] == ' ') || (s[i] == '\t')))
 	{
 		i--;
 	}
@@ -9485,6 +9485,7 @@ void readOptionStr(char const *key, char val[]) {
 	std::string line;
 	while (std::getline(infile, line))
 	{
+		i = 0;
 		if (line[0] == '#' || line[0] == '\t' || line[0] == ' ' || line[0] == '\0')
 			continue;
 
@@ -9508,6 +9509,7 @@ void readOptionStr(char const *key, char val[]) {
 
 			}
 		}
+		if (!start_val) goto next; // no '=' on the line
 		val[i - start_val] = '\0';
 		trim(val);
 		// stop read when first occurence found
@@ -9518,14 +9520,14 @@ void readOptionStr(char const *key, char val[]) {
 }
 
 bool readOptionBool(char const* key) {
-	char val[100];
+	char val[100] = ""; // stays empty when the key is missing
 	readOptionStr(key, val);
 	return val[0] == '1';
 }
 
 const char* roomIds = "ABCDEFGH";
 void addRooms(char *rooms, int roomId) {
-	char r[100];
+	char r[102]; // "A." and a name of up to 99 characters
 	r[0] = roomIds[roomId];
 	r[1] = '.';
 
@@ -9547,14 +9549,14 @@ void addRooms(char *rooms, int roomId) {
 bool InitServer(){
 	char log[1024];
 
-	char rooms_a[64] = "LAN";
-	char rooms_b[64] = "LAN";
-	char rooms_c[64] = "LAN";
-	char rooms_d[64] = "LAN";
-	char rooms_e[64] = "LAN";
-	char rooms_f[64] = "LAN";
-	char rooms_g[64] = "LAN";
-	char rooms_h[64] = "LAN";
+	char rooms_a[100] = "LAN";
+	char rooms_b[100] = "LAN";
+	char rooms_c[100] = "LAN";
+	char rooms_d[100] = "LAN";
+	char rooms_e[100] = "LAN";
+	char rooms_f[100] = "LAN";
+	char rooms_g[100] = "LAN";
+	char rooms_h[100] = "LAN";
 	
 	sprintf(log, "%s NFSU:LAN server v %s starting...\n", SERVER_PLATFORM, NFSU_LAN_VERSION);
 	Log(log);

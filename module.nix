@@ -232,7 +232,8 @@ in
               Permanent rooms for ${
                 lib.replaceStrings [ "_" ] [ " " ] (lib.removePrefix "rooms_" key)
               } races. All names of one list together, including the commas
-              between them, must not be longer than 63 characters.
+              between them, have to fit on one nfsu.conf line of at most 100
+              characters.
             '';
           }
         );
@@ -249,13 +250,6 @@ in
           than 100 characters, which the config parser of the server cannot handle.
         '';
       }) settingsOrder
-      ++ map (key: {
-        assertion = lib.stringLength (render cfg.settings.${key}) <= 63;
-        message = ''
-          services.nfsuserver.settings.${key}: the room names, joined with commas, are
-          longer than 63 characters. The server reads them into a 64 byte buffer.
-        '';
-      }) roomKeys
       ++ [
         {
           assertion = lib.stringLength cfg.news <= 1000;
