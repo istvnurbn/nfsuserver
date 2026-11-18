@@ -9098,16 +9098,21 @@ S=1,wins_in_hex,loses_in_hex,
 						if (tmp == NULL) tmp = strchr(buf + 17, 9);
 						tmp[0] = 0;
 
+						int l;
+						for (l = 0; l < 4; l++) {
+							if (strcmp(user->Personas[l], buf + 17) == 0) break;
+						}
+						// not a persona of the sender: leave it and its stats alone
+						if (l == 4) {
+							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "dper", NULL, 0));
+							break;
+						}
+
 						// erase from vertor
 						std::vector<PlayerStat>::iterator it;
 						it = std::find(PS.begin(), PS.end(), buf + 17);
 						if (it != PS.end()) {
 							PS.erase(it);
-						}
-
-						int l;
-						for (l = 0; l < 4; l++) {
-							if (strcmp(user->Personas[l], buf + 17) == 0) break;
 						}
 
 						RegUser* tr = Server.ru.UserFromUsername(user->Username);
