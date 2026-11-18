@@ -994,7 +994,7 @@ void RoomClass::ListToUser(UserClass* user, char* buffer) {
 		sprintf(arr2[3], "F=H");
 		sprintf(arr2[4], "A=%s", AddrFor(tmp->User, user));
 		sprintf(arr2[5], "P=211");
-		sprintf(arr2[6], "S=%s", GetPlayerStat(user->Personas[user->SelectedPerson]));
+		sprintf(arr2[6], "S=%s", GetPlayerStat(tmp->User->Personas[tmp->User->SelectedPerson]));
 		sprintf(arr2[7], "X=%s", tmp->User->car);
 
 		if (tmp->User->Game != NULL) {
