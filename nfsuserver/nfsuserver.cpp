@@ -7392,7 +7392,7 @@ threadfunc IOThread(void * Dummy){
 					}
 				}
 			}
-			if((int)(difftime(curtime, temp->Idle))==50){
+			if((int)(difftime(time(NULL), temp->Idle))>=50){
 				sprintf(log, "Aborting connection due to timeout @ %s, IP: %s\n", con->Name, inet_ntoa(temp->remote_ip.sin_addr));
 				Log(log);
 				temp->Abort=true;
@@ -7576,7 +7576,7 @@ threadfunc ListenerWorker(void *Dummy){
 		temp=ClientConnections.First;
 
 		while(temp!=NULL) {
-			if((int)(difftime(curtime, temp->Idle))==30){
+			if((int)(difftime(time(NULL), temp->Idle))==30){
 				ttm[3]=(char)p++;
 				ttm[2]=(char)p>>8;
 				ttm[1]=(char)p>>16;
