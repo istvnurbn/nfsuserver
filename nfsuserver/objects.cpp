@@ -217,6 +217,26 @@ MessageClass *MakeMessage( char * buffer, char * command, char * params [], int 
 	return tmsg;
 } ;
 
+// Copies the value of KEY= in a message body into out. Keys start a line;
+// values end at a newline, a tab or the zero byte after the message. Returns
+// false when the key is missing or its value does not fit into size bytes.
+bool Field( const char * body, const char * key, char * out, size_t size ) {
+	size_t keylen = strlen (key);
+
+	for (const char * p = body; *p != 0; p++) {
+		if ((p == body || p[-1] == '\n' || p[-1] == '\t') && strncmp (p, key, keylen) == 0 && p[keylen] == '=') {
+			p += keylen + 1;
+			size_t len = strcspn (p, "\n\t");
+			if (len >= size) return false;
+			memcpy (out, p, len);
+			out[len] = 0;
+			return true;
+		}
+	}
+
+	return false;
+} ;
+
 int MakeCommand( char * buffer, char * command, char * params [], int paramcount ) {
 	int len, k;
 	memset (buffer, 0, 12);

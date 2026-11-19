@@ -7555,6 +7555,7 @@ threadfunc ListenerWorker(void *Dummy){
 
 	char resu[1024];
 	char dec_resu[1024];
+	char field[1024], text[900], vers[32];
 
 	char car_b64[9]; // car info in base64 from AUXI replica
 	char car_dec[6]; // decoded car info
@@ -7607,20 +7608,16 @@ threadfunc ListenerWorker(void *Dummy){
 				case 'g':
 					switch(buf[1]) {
 					case 'l': //glea
-						if (strncmp(buf + 2, "ea", 2) == 0) {
-							tmp = strchr(buf + 17, 10);
-							if (tmp == NULL) tmp = strchr(buf + 17, 9);
-							if (tmp != NULL) tmp[0] = 0;
-							GameClass* game = user->CurrentRoom->Games.GameFromName(buf + 17);
+						if (strncmp(buf + 2, "ea", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
+							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
 							if (game != NULL) {
 								game->RemoveUser(user, buffer);
 							}
 						}
 						break;
 					case 'g': //gget
-						if (strncmp(buf + 2, "et", 2) == 0) {
-							tmp = buf + 17;
-							GameClass* game = user->CurrentRoom->Games.GameFromName(tmp);
+						if (strncmp(buf + 2, "et", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
+							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
 							if (game != NULL) {
 								sprintf(arr2[0], "IDENT=%u", game->ID);
 								sprintf(arr2[1], "WHEN=2003.12.8 15:52:54");
@@ -7642,18 +7639,16 @@ threadfunc ListenerWorker(void *Dummy){
 						}
 						break;
 					case 'j': //gjoi
-						if (strncmp(buf + 2, "oi", 2) == 0) {
-							GameClass* game = user->CurrentRoom->Games.GameFromName(buf + 17);
+						if (strncmp(buf + 2, "oi", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
+							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
 							if (game != NULL) {
 								game->AddUser(user, buffer);
 							}
 						}
 						break;
 					case 'd': //gdel
-						if (strncmp(buf + 2, "el", 2) == 0) {
-							tmp = strchr(buf + 17, 10);
-							tmp[0] = 0;
-							GameClass* game = user->CurrentRoom->Games.GameFromName(buf + 17);
+						if (strncmp(buf + 2, "el", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
+							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
 							if (game != NULL) {
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "gdel", NULL, 0));
 
@@ -7671,8 +7666,9 @@ threadfunc ListenerWorker(void *Dummy){
 						}
 						break;
 					case 's': //gsta
-						if (strncmp(buf + 2, "ta", 2) == 0) {
-							GameClass* game = user->CurrentRoom->Games.GameFromName(buf + 17);
+						if (strncmp(buf + 2, "ta", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
+							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
+							if (game == NULL) break;
 							if (game->Users.Count < game->min) {
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "gstanepl", NULL, 0));
 							}
@@ -7691,76 +7687,20 @@ threadfunc ListenerWorker(void *Dummy){
 								sprintf(log, "Creating challenge\n");
 								Log(log);
 							}
+							char roomname[100], maxsize[12], minsize[12], sysflags[12];
 							GameClass* game = (GameClass*)calloc(1, sizeof(GameClass));
-							tmp = strchr(buf + 17, 10);
-							if (tmp == NULL) tmp = strchr(buf + 17, 9);
-							if (Verbose) {
-								sprintf(log, "After getting challenge name\n");
-								Log(log);
+							RoomClass* room = NULL;
+							if (Field(buf + 12, "NAME", game->Name, sizeof(game->Name)) && Field(buf + 12, "ROOM", roomname, sizeof(roomname))
+								&& Field(buf + 12, "MAXSIZE", maxsize, sizeof(maxsize)) && Field(buf + 12, "MINSIZE", minsize, sizeof(minsize))
+								&& Field(buf + 12, "SYSFLAGS", sysflags, sizeof(sysflags)) && Field(buf + 12, "PARAMS", game->params, sizeof(game->params)))
+								room = Server.Rooms.RoomFromName(roomname);
+							if (room == NULL) {
+								free(game);
+								break;
 							}
-							tmp[0] = 0;
-							tmp += 6;
-							strcpy(game->Name, buf + 17);
-							if (Verbose) {
-								sprintf(log, "After name copy\n");
-								Log(log);
-							}
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							RoomClass* room = Server.Rooms.RoomFromName(tmp);
-
-							if (Verbose) {
-								sprintf(log, "After getting room\n");
-								Log(log);
-							}
-
-							tmp = tmp2 + 9;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-
-							if (Verbose) {
-								sprintf(log, "Before atoi : %u - %s\n", game->max, tmp);
-								Log(log);
-							}
-
-							game->max = atoi(tmp);
-
-							if (Verbose) {
-								sprintf(log, "After getting max\n");
-								Log(log);
-							}
-
-							tmp = tmp2 + 9;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							game->min = atoi(tmp);
-
-							if (Verbose) {
-								sprintf(log, "After getting min\n");
-								Log(log);
-							}
-
-							tmp = tmp2 + 10;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							game->sysflags = atoi(tmp);
-
-							if (Verbose) {
-								sprintf(log, "After getting sysflags\n");
-								Log(log);
-							}
-
-							tmp = tmp2 + 8;
-							strcpy(game->params, tmp);
-
-							if (Verbose) {
-								sprintf(log, "After setting all params\n");
-								Log(log);
-							}
+							game->max = atoi(maxsize);
+							game->min = atoi(minsize);
+							game->sysflags = atoi(sysflags);
 
 							room->Games.AddGame(game);
 
@@ -7810,11 +7750,9 @@ threadfunc ListenerWorker(void *Dummy){
 				case 'm':
 					switch(buf[1]) {
 					case 'o': //move
-						if (strncmp(buf + 2, "ve", 2) == 0) {
-							tmp = strchr(buf + 17, 10);
-							tmp[0] = 0;
+						if (strncmp(buf + 2, "ve", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
 
-							RoomClass* rom = Server.Rooms.RoomFromName(buf + 17);
+							RoomClass* rom = Server.Rooms.RoomFromName(field);
 
 							if (rom != NULL) {
 								rom->AddUser(user, buffer);
@@ -7884,30 +7822,22 @@ threadfunc ListenerWorker(void *Dummy){
 
 							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "mesg", NULL, 0));//reply that msg is recv
 
-							tmp = buf + 17;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							if (tmp2 != NULL) {
-								tmp2[0] = 0;
-								if (strncmp(tmp2 + 1, "PRIV", 4) == 0) {
+							if (Field(buf + 12, "TEXT", text, sizeof(text))) {
+								if (Field(buf + 12, "PRIV", field, sizeof(field))) {
 									if (Verbose) {
 										sprintf(log, "Private message\n");
 										Log(log);
 									}
-									tmp = tmp2 + 6;
-									tmp2 = strchr(tmp, 10);
-									if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-									tmp2[0] = 0;
 									UserClass* us;
-									us = Server.Users.UserFromUsername(tmp);
+									us = Server.Users.UserFromUsername(field);
 									if (us != NULL) {
 										if (us->Connection != NULL) {
 											sprintf(arr2[0], "F=EP5");
-											sprintf(arr2[1], "T=%s", buf + 17);
+											sprintf(arr2[1], "T=%s", text);
 											sprintf(arr2[2], "N=%s", user->Personas[user->SelectedPerson]);
 											us->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, "+msg", arr, 3));
 											// reply to author
-											sprintf(arr2[1], "T=%s: %s", us->Personas[us->SelectedPerson], buf + 17);
+											sprintf(arr2[1], "T=%s: %s", us->Personas[us->SelectedPerson], text);
 											user->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, "+msg", arr, 3));
 										}
 									}
@@ -7925,7 +7855,7 @@ threadfunc ListenerWorker(void *Dummy){
 									}
 									if (user->CurrentRoom != NULL) {
 										sprintf(arr2[0], "F=U");
-										sprintf(arr2[1], "T=%s", buf + 17);
+										sprintf(arr2[1], "T=%s", text);
 										sprintf(arr2[2], "N=%s", user->Personas[user->SelectedPerson]);
 										BroadCastCommand(user->CurrentRoom->Users, "+msg", arr, 3, buffer);
 									}
@@ -7944,70 +7874,13 @@ threadfunc ListenerWorker(void *Dummy){
 					switch (buf[1]) {
 					case 'a': //rank
 						if (strncmp(buf + 2, "nk", 2) == 0) {
-							char* rept, * name0, * name1, * name2, * name3;
+							char rept[16], n0[16], n1[16], n2[16], n3[16];
+							char* name0 = n0, * name1 = n1, * name2 = n2, * name3 = n3;
 
-							// get REPT  
-							tmp = strstr(buf + 12, "REPT=");
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							rept = tmp + 5;
-
-							// get NAME0
-							tmp = tmp2 + 1;
-							tmp = strstr(tmp, "NAME");
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							name0 = tmp + 6;
-
-							// get NAME1
-							tmp = tmp2 + 1;
-							tmp = strstr(tmp, "NAME");
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							name1 = tmp + 6;
-
-							// get NAME2
-							tmp = tmp2 + 1;
-							tmp = strstr(tmp, "NAME");
-
-							if (tmp != NULL) {
-								tmp2 = strchr(tmp, 10);
-								if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-								tmp2[0] = 0;
-								name2 = tmp + 6;
-
-								// get NAME3
-								tmp = tmp2 + 1;
-								tmp = strstr(tmp, "NAME");
-
-								if (tmp != NULL) {
-									tmp2 = strchr(tmp, 10);
-									if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-									tmp2[0] = 0;
-									name3 = tmp + 6;
-								}
-								else {
-									name3 = NULL;
-								}
-							}
-							else {
-								name2 = NULL;
-								name3 = NULL;
-							}
-
-							// get RESU		
-							tmp = tmp2 + 1;
-							tmp = strstr(tmp, "RESU");
-							if (tmp != NULL) {
-								tmp2 = strchr(tmp, 10);
-								if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-								tmp2[0] = 0;
-								strncpy(resu, tmp + 5, sizeof(resu) - 1);
-								resu[sizeof(resu) - 1] = 0;
-							}
+							if (!Field(buf + 12, "REPT", rept, sizeof(rept)) || !Field(buf + 12, "NAME0", n0, sizeof(n0))
+								|| !Field(buf + 12, "NAME1", n1, sizeof(n1)) || !Field(buf + 12, "RESU", resu, sizeof(resu))) break;
+							if (!Field(buf + 12, "NAME2", n2, sizeof(n2))) name2 = NULL;
+							if (name2 == NULL || !Field(buf + 12, "NAME3", n3, sizeof(n3))) name3 = NULL;
 							// decode RESU (get dec_resu)
 							base64_out(resu, dec_resu, strlen(resu));
 							//*
@@ -8107,7 +7980,7 @@ threadfunc ListenerWorker(void *Dummy){
 						}
 						break;
 					case 'o': //room
-						if (strncmp(buf + 2, "om", 2) == 0) {
+						if (strncmp(buf + 2, "om", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(RoomClass::Name))) {
 							if (Verbose) {
 								sprintf(log, "Create room\n");
 								Log(log);
@@ -8125,7 +7998,7 @@ threadfunc ListenerWorker(void *Dummy){
 								rom->Games.Count = 0;
 								rom->Games.First = NULL;
 
-								strcpy(rom->Name, buf + 17);
+								strcpy(rom->Name, field);
 								Server.Rooms.AddRoom(rom);
 
 								sprintf(arr2[0], "IDENT=%u", rom->ID);
@@ -8194,13 +8067,12 @@ threadfunc ListenerWorker(void *Dummy){
 					case 'u':
 						switch (buf[2]) {
 						case 'x': //auxi
-							if (buf[3] == 'i') {
+							if (buf[3] == 'i' && Field(buf + 12, "TEXT", user->car, sizeof(user->car))) {
 								if (Verbose) {
 									sprintf(log, "Car received\n");
 									Log(log);
 								}
 
-								strcpy(user->car, buf + 17);
 								strcpy(arr2[0], buf + 12);
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "auxi", arr, 1));
 
@@ -8208,7 +8080,7 @@ threadfunc ListenerWorker(void *Dummy){
 								//check car for cheating
 								unsigned char Car_brand, Wei, Sus, Eng, Tur, Nos, Ecu, Tra, Tir, Bra;
 
-								strncpy(car_b64, buf + 17, 9);
+								strncpy(car_b64, user->car, 9);
 								base64_out(car_b64, car_dec, 9);
 								// get car brand
 								Car_brand = (((car_dec[1] << 4) >> 2) & 0x3F) | ((car_dec[2] >> 6) & 0x03);
@@ -8240,24 +8112,16 @@ threadfunc ListenerWorker(void *Dummy){
 							}
 							break;
 						case 't': //auth
-							if (buf[3] == 'h') {
+							if (buf[3] == 'h' && Field(buf + 12, "NAME", field, sizeof(field))) {
 								IsNew = true;
 								if (Verbose) {
 									sprintf(log, "auth\n");
 									Log(log);
 								}
-								tmp = strstr(buf + 17, "VERS=\"");
-								if (tmp != NULL) {
-									k = tmp[11] - '0';
-								}
-								else {
-									k = 1;
-								}
+								// VERS="pc/1.4": the digit after "pc/1."
+								k = (Field(buf + 12, "VERS", vers, sizeof(vers)) && strlen(vers) > 6) ? vers[6] - '0' : 1;
 
-								tmp = buf + 17;
-								tmp2 = strchr(tmp, 10);
-								if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-								tmp2[0] = 0;
+								tmp = field;
 								RegUser* tr = Server.ru.UserFromUsername(tmp);
 								if (tr == NULL) {
 									if (Verbose) {
@@ -8356,27 +8220,25 @@ threadfunc ListenerWorker(void *Dummy){
 						}
 						break;
 					case 'c': //acct
-						if (strncmp(buf + 2, "ct", 2) == 0) {
-							tmp = strchr(buf + 17, 10);
-							tmp[0] = 0;
+						if (strncmp(buf + 2, "ct", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
 							if (Verbose) {
 								sprintf(log, "Try to register username\n");
 								Log(log);
 							}
 
 							// check for username length
-							if ((strlen(buf + 17) < 4) || (strlen(buf + 17) > 15)) {
+							if ((strlen(field) < 4) || (strlen(field) > 15)) {
 								// name length 4-15
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "acctinam", NULL, 0));
 								break;
 							}
 
-							if (Server.ru.UserFromUsername(buf + 17) != NULL) {
+							if (Server.ru.UserFromUsername(field) != NULL) {
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "acctdupl", NULL, 0));
 							}
 							else {
-								Server.RegisterUser(buf + 17);
-								sprintf(arr2[0], "NAME=%s", buf + 17);
+								Server.RegisterUser(field);
+								sprintf(arr2[0], "NAME=%s", field);
 								sprintf(arr2[1], "PERSONAS=");
 								sprintf(arr2[2], "AGE=24");
 
@@ -8385,14 +8247,11 @@ threadfunc ListenerWorker(void *Dummy){
 						}
 						break;
 					case 'd': //addr
-						if (strncmp(buf + 2, "dr", 2) == 0) {
+						if (strncmp(buf + 2, "dr", 2) == 0 && Field(buf + 12, "PORT", temp->Port, sizeof(temp->Port))) {
 							if (Verbose) {
 								sprintf(log, "addr\n");
 								Log(log);
 							}
-							tmp = strchr(buf + 17, 10);
-							if (tmp == NULL) tmp = strchr(buf + 17, 9);
-							tmp[0] = 0;
 							//using only addr reported from socket
 							strcpy(temp->IP, inet_ntoa(temp->remote_ip.sin_addr));
 							//strcpy(temp->IP, buf+17);
@@ -8407,11 +8266,6 @@ threadfunc ListenerWorker(void *Dummy){
 								sprintf(log, "IP: %s\n", temp->IP);
 								Log(log);
 							}
-							tmp += 6;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							strcpy(temp->Port, tmp);
 							sprintf(arr2[0], "SKEY=$37940faf2a8d1381a3b7d0d2f570e6a7");
 							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "skey", arr, 1));
 						}
@@ -8429,11 +8283,8 @@ threadfunc ListenerWorker(void *Dummy){
 					}
 					break;
 				case 'c': //cper
-					if (strncmp(buf + 1, "per", 3) == 0) {
-						tmp = buf + 17;
-						tmp2 = strchr(buf + 17, 10);
-						if (tmp2 == NULL) tmp2 = strchr(buf + 17, 9);
-						tmp2[0] = 0;
+					if (strncmp(buf + 1, "per", 3) == 0 && Field(buf + 12, "PERS", field, sizeof(field))) {
+						tmp = field;
 
 
 						//looking for username dupl
@@ -8535,31 +8386,20 @@ threadfunc ListenerWorker(void *Dummy){
 					break;
 				case 'p': //pers
 					if (strncmp(buf + 1, "ers", 3) == 0) {
-						tmp = strstr(buf + 12, "PERS=");
-						if (tmp != NULL) {
-							tmp += 5;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == 0) tmp2 = strchr(tmp, 9);
-							if (tmp2 != NULL) {
-								tmp2[0] = 0;
-								user->SelectedPerson = -1;
-								user->SelectPerson(tmp);
-								if (user->SelectedPerson != -1) {
-									sprintf(arr2[0], "NAME=%s", user->Username);
-									sprintf(arr2[1], "PERS=%s", user->Personas[user->SelectedPerson]);
-									sprintf(arr2[2], "LAST=2003.12.8 15:51:58");
-									sprintf(arr2[3], "PLAST=2003.12.8 16:51:40");
-									sprintf(arr2[4], "LKEY=3fcf27540c92935b0a66fd3b0000283c");
+						if (Field(buf + 12, "PERS", field, sizeof(field))) {
+							user->SelectedPerson = -1;
+							user->SelectPerson(field);
+							if (user->SelectedPerson != -1) {
+								sprintf(arr2[0], "NAME=%s", user->Username);
+								sprintf(arr2[1], "PERS=%s", user->Personas[user->SelectedPerson]);
+								sprintf(arr2[2], "LAST=2003.12.8 15:51:58");
+								sprintf(arr2[3], "PLAST=2003.12.8 16:51:40");
+								sprintf(arr2[4], "LKEY=3fcf27540c92935b0a66fd3b0000283c");
 
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "pers", arr, 5));
-								}
-								else {
-									sprintf(log, "Could not select person.\n");
-									Log(log);
-								}
+								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "pers", arr, 5));
 							}
 							else {
-								sprintf(log, "Wrong params in pers message\n");
+								sprintf(log, "Could not select person.\n");
 								Log(log);
 							}
 						}
@@ -8595,30 +8435,10 @@ S=1,wins_in_hex,loses_in_hex,
 								sprintf(log, "Rank list\n");
 								Log(log);
 							}
-							int index, chan, start, range;
-							tmp = buf + 18;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							index = atoi(tmp);
-
-							tmp = tmp2 + 6;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							chan = atoi(tmp);
-
-							tmp = tmp2 + 7;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							start = atoi(tmp);
-
-							tmp = tmp2 + 7;
-							tmp2 = strchr(tmp, 10);
-							if (tmp2 == NULL) tmp2 = strchr(tmp, 9);
-							tmp2[0] = 0;
-							range = atoi(tmp);
+							char idx[12], chn[12], sta[12], rng[12];
+							if (!Field(buf + 12, "INDEX", idx, sizeof(idx)) || !Field(buf + 12, "CHAN", chn, sizeof(chn))
+								|| !Field(buf + 12, "START", sta, sizeof(sta)) || !Field(buf + 12, "RANGE", rng, sizeof(rng))) break;
+							int index = atoi(idx), chan = atoi(chn), start = atoi(sta), range = atoi(rng);
 
 							sprintf(arr2[0], "INDEX=%u", index);
 							sprintf(arr2[1], "CHAN=%u", chan);
@@ -9093,15 +8913,11 @@ S=1,wins_in_hex,loses_in_hex,
 					}
 					break;
 				case 'd': // dper
-					if (strncmp(buf + 1, "per", 3) == 0) {
-
-						tmp = strchr(buf + 17, 10);
-						if (tmp == NULL) tmp = strchr(buf + 17, 9);
-						tmp[0] = 0;
+					if (strncmp(buf + 1, "per", 3) == 0 && Field(buf + 12, "PERS", field, sizeof(field))) {
 
 						int l;
 						for (l = 0; l < 4; l++) {
-							if (strcmp(user->Personas[l], buf + 17) == 0) break;
+							if (strcmp(user->Personas[l], field) == 0) break;
 						}
 						// not a persona of the sender: leave it and its stats alone
 						if (l == 4) {
@@ -9111,7 +8927,7 @@ S=1,wins_in_hex,loses_in_hex,
 
 						// erase from vertor
 						std::vector<PlayerStat>::iterator it;
-						it = std::find(PS.begin(), PS.end(), buf + 17);
+						it = std::find(PS.begin(), PS.end(), field);
 						if (it != PS.end()) {
 							PS.erase(it);
 						}

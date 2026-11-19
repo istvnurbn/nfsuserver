@@ -59,3 +59,4 @@ struct ConAccParam {
 	SOCKET sock;
 };
 MessageClass *MakeMessage( char * buffer, char * command, char * params [], int paramcount );
+bool Field( const char * body, const char * key, char * out, size_t size );
