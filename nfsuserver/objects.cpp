@@ -246,6 +246,8 @@ int MakeCommand( char * buffer, char * command, char * params [], int paramcount
 
 	for (k = 0; k < paramcount; k++) {
 		if(params[k]!=NULL){
+			// every caller passes a 1024 byte buffer; later parameters are dropped
+			if (len + strlen (params[k]) + 1 > 1024) break;
 			memcpy (buffer + len, params[k], strlen (params[k]));
 			len += (int)strlen (params[k]) + 1;
 			buffer[len - 1] = 9;
