@@ -7375,7 +7375,7 @@ threadfunc IOThread(void * Dummy){
 							temp->Received+=k;
 						}
 					}
-					if(req>999){
+					if((req<12)||(req>999)){
 						temp->Abort=true;
 					}
 					if(temp->Received==req){						
@@ -7384,7 +7384,8 @@ threadfunc IOThread(void * Dummy){
 							Log(log);
 						}
 						msg=(MessageClass*)calloc(1, sizeof(MessageClass));
-						msg->Message=(char*)calloc(temp->Received, sizeof(char));
+						// the zero byte after the message ends its last value
+						msg->Message=(char*)calloc(temp->Received + 1, sizeof(char));
 						msg->Size=temp->Received;
 						memcpy(msg->Message, temp->Buffer, temp->Received);
 						temp->IncomingMessages.AddMessage(msg);
