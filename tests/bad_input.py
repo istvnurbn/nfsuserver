@@ -55,8 +55,7 @@ def bad_bodies():
 
 def log_in(player, server):
     player.request("addr", f"ADDR={server}\nPORT=3658\n", "skey")
-    player.request("acct", f"NAME={player.user}\nPASS=x\n", "acct", "acctdupl")
-    player.request("auth", f'NAME={player.user}\nPASS=x\nVERS="pc/1.4"\n', "auth")
+    player.log_in()
 
 
 def main():

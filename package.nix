@@ -1,6 +1,8 @@
 {
   lib,
   stdenv,
+  sqlite,
+  libxcrypt,
 }:
 
 stdenv.mkDerivation {
@@ -21,10 +23,12 @@ stdenv.mkDerivation {
     ];
   };
 
-  # The Makefile hardcodes `g++` and `-L"/lib"`.
-  makeFlags = [
-    "CC=${stdenv.cc.targetPrefix}c++"
-    "LIBS=-lpthread"
+  # The Makefile hardcodes `g++`.
+  makeFlags = [ "CC=${stdenv.cc.targetPrefix}c++" ];
+
+  buildInputs = [
+    sqlite
+    libxcrypt
   ];
 
   # Pin the dialect this 2004 code base was written for, so a newer default

@@ -129,22 +129,6 @@ struct StarsDrift {
 };
 
 
-struct RegUser {
-	char Username[16];
-	char Personas[4][16];
-	RegUser* Next;
-};
-
-class RegUsers {
-public:
-	int Count;
-	RegUser* First;
-	RegUser* Last;
-	RegUser* UserFromUsername(char* username);
-	void AddUser(RegUser* user);
-	void RemoveUser(RegUser* user);
-};
-
 class RoomClass;
 class GameClass;
 class ConnectionClass;
@@ -281,18 +265,14 @@ public:
 	time_t Startup;
 	UsersClass Users;
 	RoomsClass Rooms;
-	RegUsers ru;
 	void SendRoomsToUser(UserClass* user, char* buffer);
 	ServerClass();
-	void LoadSettings();
-	void SaveSettings();
 	void LoadStat();
 	void SaveStat();
 	void LoadStars(int track);
 	void SaveStars(int track);
 	void LoadStarsDrift(int track);
 	void SaveStarsDrift(int track);
-	bool RegisterUser(char* username);
 };
 
 bool RecvCommand(SOCKET sock, char* buffer);

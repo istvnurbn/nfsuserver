@@ -4,8 +4,8 @@
 CC   = g++
 WINDRES = windres.exe
 RES  = 
-OBJ  = nfsuserver.o objects.o server.o $(RES)
-LIBS =  -L"/lib" -lpthread
+OBJ  = nfsuserver.o objects.o server.o accounts.o $(RES)
+LIBS =  -lpthread -lsqlite3 -lcrypt
 INCS =  #-I "." 
 BIN  = nfsuserver
 CFLAGS = $(INCS) -s -O2 -fexpensive-optimizations
@@ -29,3 +29,6 @@ server.o: server.cpp
 
 objects.o: objects.cpp
 	$(CC) -c objects.cpp -o objects.o $(CFLAGS)
+
+accounts.o: accounts.cpp
+	$(CC) -c accounts.cpp -o accounts.o $(CFLAGS)

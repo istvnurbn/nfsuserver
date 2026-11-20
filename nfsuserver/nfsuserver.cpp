@@ -7,6 +7,7 @@
 
 #include "win_nix.h"
 #include "objects.h"
+#include "accounts.h"
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -178,13 +179,6 @@ void base64_out(char* buf, char* obuf, int len) {
 	if (nprbytes > 3)
 		*(obuf++) = (ascii[(int)buf[2]] << 6 | ascii[(int)buf[3]]);
 	*(obuf)++ = '\0';
-};
-
-void ShiftPersona(UserClass* user, RegUser* tr, int l) {
-	strcpy(user->Personas[l], user->Personas[l + 1]);
-	memset(user->Personas[l + 1], 0, 16);
-	strcpy(tr->Personas[l], tr->Personas[l + 1]);
-	memset(tr->Personas[l + 1], 0, 16);
 };
 
 bool IsCheater(const unsigned char wei, const unsigned char sus, const unsigned char eng, const unsigned char tur,
@@ -8121,14 +8115,25 @@ threadfunc ListenerWorker(void *Dummy){
 								// VERS="pc/1.4": the digit after "pc/1."
 								k = (Field(buf + 12, "VERS", vers, sizeof(vers)) && strlen(vers) > 6) ? vers[6] - '0' : 1;
 
-								tmp = field;
-								RegUser* tr = Server.ru.UserFromUsername(tmp);
-								if (tr == NULL) {
+								char pass[17], name[100], personas[4][100];
+								int login = ACC_WRONG;
+								if (!Field(buf + 12, "PASS", text, sizeof(text)) || !DecodePass(text, pass, sizeof(pass))) {
+									sprintf(log, "[warn] A PASS from %s does not decode\n", temp->IP);
+									Log(log);
+								}
+								else login = AccountLogin(field, pass, name, personas);
+								tmp = name;
+								if (login != ACC_OK) {
+									const char* reply = "authfrea"; // ACC_ERROR: "File record read error"
+									if (login == ACC_NOUSER) reply = "authimst";
+									if (login == ACC_BADPASS) reply = "authipas";
+									if (login == ACC_BANNED) reply = "authlock"; // "Account locked"
+									if (login == ACC_WRONG) reply = "authpass";
 									if (Verbose) {
-										sprintf(log, "No such user\n");
+										sprintf(log, "Login refused: %s\n", reply);
 										Log(log);
 									}
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "authimst", NULL, 0));
+									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, (char*)reply, NULL, 0));
 								}
 								else {
 									user = Server.Users.UserFromUsername(tmp);
@@ -8142,13 +8147,7 @@ threadfunc ListenerWorker(void *Dummy){
 										strcpy(user->Port, temp->Port);
 										user->id = -1;
 										strcpy(user->Username, tmp);
-										int l = 0;
-										RegUser* tr = Server.ru.UserFromUsername(user->Username);
-										while (tr->Personas[l][0] != 0) {
-											strcpy(user->Personas[l], tr->Personas[l]);
-											l++;
-											if (l == 4) break;
-										}
+										memcpy(user->Personas, personas, sizeof(personas));
 										user->Idle = 0;
 										user->Connection = temp;
 										temp->user = user;
@@ -8226,24 +8225,30 @@ threadfunc ListenerWorker(void *Dummy){
 								Log(log);
 							}
 
-							// check for username length
-							if ((strlen(field) < 4) || (strlen(field) > 15)) {
-								// name length 4-15
-								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "acctinam", NULL, 0));
+							char pass[17];
+							size_t len = strlen(field);
+							const char* err = NULL;
+							if (len < 4 || len > 16) err = "acctinam";
+							else if (!NameValid(field, 4, 16)) err = "acctimst";
+							else if (!Field(buf + 12, "PASS", text, sizeof(text)) || !DecodePass(text, pass, sizeof(pass))) {
+								sprintf(log, "[warn] A PASS from %s does not decode\n", temp->IP);
+								Log(log);
+								err = "acctpass";
+							}
+							else switch (AccountCreate(field, pass)) {
+							case ACC_OK: break;
+							case ACC_BADPASS: err = "acctipas"; break;
+							case ACC_DUPL: err = "acctdupl"; break;
+							default: err = "acctfrwi"; // "File record write error"
+							}
+							if (err != NULL) {
+								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, (char*)err, NULL, 0));
 								break;
 							}
-
-							if (Server.ru.UserFromUsername(field) != NULL) {
-								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "acctdupl", NULL, 0));
-							}
-							else {
-								Server.RegisterUser(field);
-								sprintf(arr2[0], "NAME=%s", field);
-								sprintf(arr2[1], "PERSONAS=");
-								sprintf(arr2[2], "AGE=24");
-
-								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "acct", arr, 3));
-							}
+							sprintf(arr2[0], "NAME=%s", field);
+							sprintf(arr2[1], "PERSONAS=");
+							sprintf(arr2[2], "AGE=24");
+							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "acct", arr, 3));
 						}
 						break;
 					case 'd': //addr
@@ -8284,104 +8289,35 @@ threadfunc ListenerWorker(void *Dummy){
 					break;
 				case 'c': //cper
 					if (strncmp(buf + 1, "per", 3) == 0 && Field(buf + 12, "PERS", field, sizeof(field))) {
-						tmp = field;
-
-
-						//looking for username dupl
-						int pers_exist = 0;
-						RegUser* tr = Server.ru.First;
-
-						while ((tr != NULL) && (!pers_exist)) {
-							for (int i = 0; i < 4; i++) {
-								if (stricmp(tr->Personas[i], tmp) == 0) {
-									pers_exist = 1;
-									break;
-								}
-							}
-							tr = tr->Next;
+						size_t len = strlen(field);
+						const char* err = NULL;
+						if (len < 3 || len > 12) err = "cperinam";
+						else if (!NameValid(field, 3, 12)) err = "cperiper";
+						else switch (PersonaCreate(user->Username, field)) {
+						case ACC_OK: break;
+						case ACC_DUPL: err = "cperdupl"; break;
+						case ACC_MAXP: err = "cpermaxp"; break;
+						default: err = "cperfrwi"; // "File record write error"
 						}
-
-						if (pers_exist) {
-							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "cperdupl", NULL, 0));
+						if (err != NULL) {
+							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, (char*)err, NULL, 0));
 							break;
 						}
+						LoadPersonas(user->Username, user->Personas);
 
-						// check user name length
-						if ((strlen(tmp) < 3) || (strlen(tmp) > 15)) {
-							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "cperinam", NULL, 0));
-							break;
-						}
+						// stats left behind by an earlier owner of the name
+						std::vector<PlayerStat>::iterator it = std::find(PS.begin(), PS.end(), field);
+						if (it != PS.end()) PS.erase(it);
+						PS.push_back(PlayerStat(field, 9999, 0, 0, 0, 100, 101, 101,
+							9999, 0, 0, 0, 100, 101, 101,
+							9999, 0, 0, 0, 100, 101, 101,
+							9999, 0, 0, 0, 100, 101, 101,
+							9999, 0, 0, 0, 100, 101, 101));
+						Server.SaveStat();
 
-						// check characters in the user name
-						/*
-						char ch=0;
-						while (tmp[ch]!=0) {
-							if ((tmp[ch]<48)||(tmp[ch]>122)) {
-								pers_exist = 1;
-								break;
-							}
-							if ((tmp[ch]>57)&&(tmp[ch]<65)) {
-								pers_exist = 1;
-								break;
-							}
-							if ((tmp[ch]>90)&&(tmp[ch]<95)) {
-								pers_exist = 1;
-								break;
-							}
-							ch++;
-						}
-						if (pers_exist){
-							// invalid characters in the name
-							temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "cperiper", NULL, 0));
-							break;
-						}
-						//*/
-						// invalid name or characters
-						//temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "cperfilt", NULL, 0));
-						// reach maximum user names
-						//temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "cpermaxp", NULL, 0));
-
-
-						for (int l = 0; l < 4; l++) {
-							if (user->Personas[l][0] == 0) {
-								strcpy(user->Personas[l], tmp);
-								RegUser* tr = Server.ru.UserFromUsername(user->Username);
-								if (tr != NULL) {
-									strcpy(tr->Personas[l], tmp);
-
-									// add to the vector
-									PS.push_back(PlayerStat(tmp, 9999, 0, 0, 0, 100, 101, 101,
-										9999, 0, 0, 0, 100, 101, 101,
-										9999, 0, 0, 0, 100, 101, 101,
-										9999, 0, 0, 0, 100, 101, 101,
-										9999, 0, 0, 0, 100, 101, 101));
-
-
-									// REP bonus 
-									// Circuit = 50000 Sprint = 5000 Drag = 5000 Drift = 50000
-									/*
-									PS.push_back(PlayerStat(tmp, 9999, 0,0,0,27500,101,101,
-													9999, 0,0,0,50000,101,101,
-													9999, 0,0,0,5000,101,101,
-													9999, 0,0,0,5000,101,101,
-													9999, 0,0,0,50000,101,101));
-									*/
-
-									Server.SaveSettings();
-									Server.SaveStat();
-									sprintf(arr2[0], "PERS=%s", tmp);
-									sprintf(arr2[1], "NAME=%s", user->Username);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "cper", arr, 2));
-								}
-								else {
-									if (Verbose) {
-										sprintf(buffer, "Panic - user tries to create subaccount name without having username.\n");
-										Log(buffer);
-									}
-								}
-								break;
-							}
-						}
+						sprintf(arr2[0], "PERS=%s", field);
+						sprintf(arr2[1], "NAME=%s", user->Username);
+						temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "cper", arr, 2));
 					}
 					break;
 				case 'p': //pers
@@ -8932,64 +8868,8 @@ S=1,wins_in_hex,loses_in_hex,
 							PS.erase(it);
 						}
 
-						RegUser* tr = Server.ru.UserFromUsername(user->Username);
-						switch (l) {
-						
-						case 3:
-							memset(user->Personas[l], 0, 16);
-							memset(tr->Personas[l], 0, 16);
-							break;
-						case 2:
-							if (user->Personas[l + 1] == 0) {
-								memset(user->Personas[l], 0, 16);
-								memset(tr->Personas[l], 0, 16);
-							}
-							else {
-								ShiftPersona(user, tr, l);
-							}
-							break;
-						case 1:
-							if (user->Personas[l + 1] == 0) {
-								memset(user->Personas[l], 0, 16);
-								memset(tr->Personas[l], 0, 16);
-							}
-							else {
-								ShiftPersona(user, tr, l);
-							}
-							if (user->Personas[l + 2] == 0) {
-								memset(user->Personas[l + 1], 0, 16);
-								memset(tr->Personas[l + 1], 0, 16);
-							}
-							else {
-								ShiftPersona(user, tr, l + 1);
-							}
-							break;
-						case 0:
-							if (user->Personas[l + 1] == 0) {
-								memset(user->Personas[l], 0, 16);
-								memset(tr->Personas[l], 0, 16);
-							}
-							else {
-								ShiftPersona(user, tr, l);
-							}
-							if (user->Personas[l + 2] == 0) {
-								memset(user->Personas[l + 1], 0, 16);
-								memset(tr->Personas[l + 1], 0, 16);
-							}
-							else {
-								ShiftPersona(user, tr, l + 1);
-							}
-							if (user->Personas[l + 3] == 0) {
-								memset(user->Personas[l + 2], 0, 16);
-								memset(tr->Personas[l + 2], 0, 16);
-							}
-							else {
-								ShiftPersona(user, tr, l + 2);
-							}
-							break;
-						}
-
-						Server.SaveSettings();
+						PersonaDelete(user->Username, field);
+						LoadPersonas(user->Username, user->Personas);
 						Server.SaveStat();
 						temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "dper", NULL, 0));
 					}
@@ -9594,6 +9474,8 @@ bool InitServer(){
 	strcpy(ClientConnections.Name, "ClientConnections");
 	strcpy(ReportingConnections.Name, "ReportingConnections");
 
+	if (!DbOpen("nfsu.db")) return false;
+
 	//starting threads
 	//static: the accept threads keep reading these after InitServer() has returned
 	static ConAccParam Redirector, Listener, Reporter;
@@ -9643,7 +9525,6 @@ void DeInitServer(){
 	UserClass *tuser;
 	GameClass *tgame;
 	RoomClass *troom;
-	RegUser *treguser;
 	ConnectionClass *tcon;
 
 
@@ -9684,11 +9565,7 @@ void DeInitServer(){
 		Server.Rooms.RemoveRoom(troom);
 		free(troom);
 	}
-	while(Server.ru.Count>0){
-		treguser=Server.ru.First;
-		Server.ru.RemoveUser(treguser);
-		free(treguser);
-	}
+	DbClose();
 
 	//closing logfile
 	if(logfil!=NULL) fclose(logfil);

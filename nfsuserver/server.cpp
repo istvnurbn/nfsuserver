@@ -57,8 +57,6 @@ UserClass::UserClass() {
 
 ServerClass::ServerClass() {
 	time(&Startup);
-	memset(&ru, 0, sizeof(ru));
-	LoadSettings();
 	LoadStat();
 	LoadStars(1001);
 	LoadStars(1002);
@@ -245,21 +243,6 @@ void ServerClass::SendRoomsToUser(UserClass* user, char* buffer) {
 		}
 		tmp = tmp->Next;
 	}
-};
-
-bool ServerClass::RegisterUser(char* username) {
-	RegUser* temp;
-	temp = ru.UserFromUsername(username);
-
-	if (temp == NULL) {
-		temp = (RegUser*)calloc(1, sizeof(RegUser));
-		strcpy(temp->Username, username);
-		ru.AddUser(temp);
-		return true;
-	}
-	else {
-		return false;
-	};
 };
 
 RoomsClass::RoomsClass() {
@@ -1025,108 +1008,6 @@ int atoi2(char* str) {
 	return ret;
 };
 
-RegUser* RegUsers::UserFromUsername(char* username) {
-	RegUser* temp = First;
-
-	while (temp != NULL) {
-		if (stricmp(temp->Username, username) == 0) {
-			return temp;
-		}
-		temp = temp->Next;
-	}
-
-	return NULL;
-};
-
-void RegUsers::AddUser(RegUser* user) {
-	user->Next = NULL;
-
-	if (Count == 0) {
-		First = user;
-		Last = user;
-	}
-	else {
-		Last->Next = user;
-		Last = user;
-	}
-
-	Count++;
-};
-
-void RegUsers::RemoveUser(RegUser* user) {
-	if (user == NULL) return;
-
-	if (Count == 0) return;
-
-	if (Count == 1) {
-		First = NULL;
-		Last = NULL;
-		Count = 0;
-	}
-	else {
-		if (First == user) {
-			First = First->Next;
-			Count--;
-			return;
-		}
-
-		RegUser* prev, * temp;
-		temp = First;
-		prev = NULL;
-
-		while ((temp != user) && (temp != NULL)) {
-			prev = temp;
-			temp = temp->Next;
-		}
-		if (prev != NULL) {
-			if (temp == Last) {
-				Last = prev;
-				prev->Next = NULL;
-			}
-			else {
-				prev->Next = temp->Next;
-			}
-			Count--;
-		}
-	}
-};
-
-void ServerClass::SaveSettings() {
-	FILE* fil;
-	fil = fopen("rusers.dat", "wb");
-
-	if (fil == NULL) return;
-
-	RegUser* temp = ru.First;
-
-	while (temp != NULL) {
-		fwrite(temp, 1, sizeof(RegUser), fil);
-		temp = temp->Next;
-	}
-
-	fclose(fil);
-};
-
-void ServerClass::LoadSettings() {
-	while (ru.Count > 0)
-		ru.RemoveUser(ru.Last);
-
-	FILE* fil;
-	fil = fopen("rusers.dat", "rb");
-
-	if (fil == NULL) return;
-
-	RegUser* temp;
-
-	while (!feof(fil)) {
-		temp = (RegUser*)calloc(1, sizeof(RegUser));
-		fread(temp, 1, sizeof(RegUser), fil);
-		temp->Next = NULL;
-		ru.AddUser(temp);
-	}
-
-	fclose(fil);
-};
 
 void ServerClass::SaveStat() {
 	FILE* fil;

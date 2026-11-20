@@ -26,6 +26,17 @@ import struct
 import sys
 import time
 
+# How the game hides the password in PASS=: each character moves forward by a
+# fixed amount for its position, round the 96 printable characters; 0x7f ends it.
+PASS_KEY = [0, 9, 33, 69, 41, 38, 7, 58, 7, 27, 45, 14, 1, 84, 35, 29, 14]
+
+
+def encode_pass(password):
+    """PASS= the way the game sends it: "~" and 30 bytes, some %XX escaped."""
+    shifted = [(ord(c) - 32 + PASS_KEY[i]) % 96 + 32 for i, c in enumerate(password + "\x7f")]
+    raw = "".join(map(chr, shifted)).ljust(30, "x")
+    return "~" + "".join(f"%{ord(c):02x}" if c in ' "%:=\x7f' else c for c in raw)
+
 
 class Player:
     def __init__(self, name, source, server, port, tag):
@@ -84,6 +95,12 @@ class Player:
         got = ", ".join(reply for reply, _ in self.inbox[first:]) or "nothing"
         sys.exit(f"{self.name}: no {' or '.join(replies)} after {command}, got {got}")
 
+    def log_in(self, password="test1234"):
+        """Sign up if the account is new, then log in."""
+        self.request("acct", f"NAME={self.user}\nPASS={encode_pass(password)}\n", "acct", "acctdupl")
+        # the sixth character of the version is the one the server looks at
+        return self.request("auth", f'NAME={self.user}\nPASS={encode_pass(password)}\nVERS="pc/1.4"\n', "auth")
+
     def told(self):
         """Yield (message, persona, address) for every address of a player
         this player has been sent."""
@@ -127,9 +144,7 @@ def main():
 
     for player in players:
         player.request("addr", f"ADDR={player.source}\nPORT=3658\n", "skey")
-        player.request("acct", f"NAME={player.user}\nPASS=x\n", "acct", "acctdupl")
-        # the sixth character of the version is the one the server looks at
-        player.request("auth", f'NAME={player.user}\nPASS=x\nVERS="pc/1.4"\n', "auth")
+        player.log_in()
         player.request("cper", f"PERS={player.user}\n", "cper", "cperdupl")
         player.request("pers", f"PERS={player.user}\n", "pers")
 
