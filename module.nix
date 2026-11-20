@@ -21,12 +21,12 @@ let
 
   tcpPorts = [
     10900 # redirector: first contact of a game that is pointed straight at this server
-    10901 # lobby: where a redirector (this one, or the one in the launcher) sends the game
-    10800 # server info: without it the launcher shows the server as offline, and the public list rejects it
+    10901 # lobby: where a redirector (this one, or one in a launcher) sends the game
+    10800 # server info: without it launchers show the server as offline, and the public list rejects it
     10980 # statistics, read by the scripts in web/
   ];
   udpPorts = [
-    10800 # LAN discovery by the launcher (answered to port 10801 of the sender)
+    10800 # LAN discovery by launchers (answered to port 10801 of the sender)
   ];
 
   roomKeys = [
@@ -131,7 +131,7 @@ in
           servername = mkOption {
             type = types.singleLineStr;
             default = "Another cool server";
-            description = "Server name that players see in the launcher.";
+            description = "Server name that players see in server lists.";
           };
 
           serverip = mkOption {
@@ -154,7 +154,7 @@ in
               for two things.
 
               A game that is pointed straight at this server (a hosts entry
-              for `ps2nfs04.ea.com` instead of the launcher) first asks the
+              for `ps2nfs04.ea.com`, or NFSUServerChanger) first asks the
               redirector on port 10900 where the lobby is, and is sent to this
               address. Left empty, the answer is the local address that
               connection arrived on, which is only right if the public address
@@ -162,8 +162,8 @@ in
               machine of the server is always sent to the address it used. A
               game on another machine in the LAN is sent to the public address
               like everybody else and depends on the router letting it back in
-              (NAT loopback); the launcher avoids that, it does the
-              redirecting itself.
+              (NAT loopback); a launcher that does the redirecting
+              itself avoids that.
 
               The games race each other directly, and the server tells them
               where the others are. Players on the machine or in the private
@@ -189,7 +189,7 @@ in
           rewritelogfile = mkBool true "Truncate `server.log` on every start instead of appending to it.";
 
           registerglobal = mkBool false ''
-            Announce the server to the public server list of the launcher
+            Announce the server to the public server list of the old launcher
             (the tracker at `nfsug.harpywar.com`) once a minute. The tracker
             only lists servers it can reach on TCP port 10800.
           '';

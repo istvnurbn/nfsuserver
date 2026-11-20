@@ -1,27 +1,3 @@
-#ifdef _WIN32
-
-class Mutex {
-	private:
-		CRITICAL_SECTION lock;
-
-	public:
-		void Init( void ) {
-			InitializeCriticalSection (&lock);
-		}
-
-		void DeInit( void ) {
-			DeleteCriticalSection (&lock);
-		}
-
-		void Lock( void ) {
-			EnterCriticalSection (&lock);
-		}
-
-		void Unlock( void ) {
-			LeaveCriticalSection (&lock);
-		}
-};
-#else
 
 class Mutex {
 	private:
@@ -48,4 +24,3 @@ class Mutex {
 			pthread_mutex_unlock (&lock);
 		}
 };
-#endif

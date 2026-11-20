@@ -1,9 +1,5 @@
 // nfsuserver.cpp : Defines the entry point for the console application.
 //
-#ifdef _WIN32
-#pragma comment(lib, "ws2_32.lib")
-#include <cwchar>
-#endif
 
 #include "win_nix.h"
 #include "objects.h"
@@ -12,7 +8,6 @@
 #include <sstream>
 #include <string>
 
-#ifndef _WIN32
 
 int stricmp( const char *b, const char *a ){
     while (*a != '\0' && *b != '\0' && tolower(*a) == tolower(*b)){
@@ -22,16 +17,7 @@ int stricmp( const char *b, const char *a ){
 
     return *a == *b ? 0 : tolower(*a)<tolower(*b) ? -1 : 1;
 }
-#endif
 
-#ifdef NT_SERVICE
-
-FILE * g_LogFile;
-char g_Msg[255];
-
-SERVICE_STATUS ServiceStatus;
-SERVICE_STATUS_HANDLE ServiceStatusHandle;
-#endif
 
 bool EnableLogFile;
 bool EnableLogScreen;
@@ -6312,18 +6298,9 @@ threadfunc IOThread(void * Dummy){
 			tim.tv_usec=0;
 			k=select(temp->sock+1, &check, NULL, NULL, &tim);
 			if(k<0){
-#ifndef _WIN32
 				if(errno != EAGAIN){
 					sprintf(log, "Error on select() errno : %u\n", errno);
-#else
-				if(WSAGetLastError()!=WSAENOTSOCK){
-					sprintf(log, "Error on select() WSAError : %u\n", WSAGetLastError());
-#endif				
 					Log(log);
-#ifdef _WIN32
-				}else{
-					temp->Abort=true;
-#endif
 				}
 			}
 			if(k==1){
@@ -6345,7 +6322,6 @@ threadfunc IOThread(void * Dummy){
 					//sprintf(log, "Receiving command data.\n");
 					//Log(log);
 					DWORD req=(temp->Buffer[11]&0xFF)|((temp->Buffer[10]<<8)&0xFF00)|((temp->Buffer[9]<<16)&0xFF0000)|((temp->Buffer[8]<<24)&0xFF000000);
-//					WSASetLastError(0);
 					if((req>12)&&(req<1000)){
 						k=recv(temp->sock, temp->Buffer+temp->Received, req-temp->Received, 0);
 						if(k<1){							
@@ -6402,13 +6378,9 @@ threadfunc AcceptThread(void *Dummy){
 
 	ConnectionClass *temp;
 
-#ifdef _WIN32
-	int timeo=10;
-#else
 	struct timeval timeo;
 	timeo.tv_sec  = 0;
 	timeo.tv_usec = 10000;
-#endif
 	while(running){
 		cl=accept(acc->sock, NULL, NULL);
 		if(cl!=INVALID_SOCKET){
@@ -6416,13 +6388,8 @@ threadfunc AcceptThread(void *Dummy){
 			temp->IncomingMessages.mut.Init();
 			temp->OutgoingMessages.mut.Init();
 			temp->sock=cl;
-#ifndef _WIN32
 			getsockname(temp->sock, (SOCKADDR *)&temp->local_ip,(socklen_t*) &remote_sockaddr_length);
 			getpeername(temp->sock, (SOCKADDR *)&temp->remote_ip,(socklen_t*) &remote_sockaddr_length);
-#else
-			getsockname(temp->sock, (SOCKADDR *)&temp->local_ip ,(int*) &remote_sockaddr_length);
-			getpeername(temp->sock, (SOCKADDR *)&temp->remote_ip,(int*) &remote_sockaddr_length);
-#endif
 			time(&temp->Idle);
 			acc->Connections->AddConnection(temp);
 			temp->id=ids++;				
@@ -7610,11 +7577,7 @@ threadfunc ClientReporter(void *Dummy){
 	char tempBuff[1024];
 
 	while(running){
-#ifndef _WIN32
 		status = recvfrom(ClientReportingSocket, tempBuff, 1024, 0, (SOCKADDR *)&remote_sockaddr_in,(socklen_t*) &remote_sockaddr_length);
-#else
-		status = recvfrom(ClientReportingSocket, tempBuff, 1024, 0, (SOCKADDR *)&remote_sockaddr_in,(int *) &remote_sockaddr_length);
-#endif
 		if (status == SOCKET_ERROR) {
 			sprintf(tempBuff, "Recvfrom failed @ ClientReporter.\nExiting ClientReporter thread - AutoFind feature won't be available till server is restarted!!!.\n");
 			Log(tempBuff);
@@ -7626,11 +7589,7 @@ threadfunc ClientReporter(void *Dummy){
 			Log(tempBuff);
 		}
 		sprintf(tempBuff, "%s", NFSU_LAN_VERSION);
-#ifdef _WIN32
-		if(!SendData(tempBuff, remote_sockaddr_in.sin_addr.S_un.S_addr)){
-#else
 		if(!SendData(tempBuff, remote_sockaddr_in.sin_addr.s_addr)){
-#endif
 			sprintf(tempBuff, "Could not send data to server finder: %s\n", inet_ntoa(remote_sockaddr_in.sin_addr));
 			Log(tempBuff);
 		}
@@ -7652,11 +7611,7 @@ threadfunc ClientReporterTcp(void *Dummy){
 	while(running){
 		cl=accept(ClientReportingSocketTcp, NULL, NULL);
 		if(cl!=INVALID_SOCKET){
-#ifndef _WIN32
 			getpeername(cl, (SOCKADDR *)&remote_sockaddr_in,(socklen_t*) &remote_sockaddr_length);
-#else
-			getpeername(cl, (SOCKADDR *)&remote_sockaddr_in,(int*) &remote_sockaddr_length);
-#endif			
 			if(Verbose){
 				sprintf(tempBuff, "Server finder connected from %s\n", inet_ntoa(remote_sockaddr_in.sin_addr));
 				Log(tempBuff);
@@ -7686,11 +7641,7 @@ threadfunc StatThread(void *Dummy){
 	while(running){
 		cl=accept(ReportingSocket, NULL, NULL);
 		if(cl!=INVALID_SOCKET){
-#ifndef _WIN32
 			getpeername(cl, (SOCKADDR *)&remote_sockaddr_in,(socklen_t*) &remote_sockaddr_length);
-#else
-			getpeername(cl, (SOCKADDR *)&remote_sockaddr_in,(int*) &remote_sockaddr_length);
-#endif			
 			if(Verbose){
 				sprintf(tempBuff, "Stat client connected from %s\n", inet_ntoa(remote_sockaddr_in.sin_addr));
 				Log(tempBuff);
@@ -7769,75 +7720,6 @@ threadfunc Maintenance(void *Dummy){
 	RETURNFROMTHREAD;
 };
 
-#ifdef NT_SERVICE
-VOID WriteInLogFile( char *text )
-{
-    g_LogFile = fopen( "Service.log", "a+t" );
-    
-	if ( g_LogFile )
-    {
-        fprintf( g_LogFile, text );
-        fclose( g_LogFile );
-    }
-    
-	return;
-}
-
-VOID WINAPI ServiceCtrlHandler(DWORD dwControl)
-{ 
-    sprintf(g_Msg, "In to service control...\n");
-    WriteInLogFile(g_Msg);
-
-    switch(dwControl) 
-    { 
-        case SERVICE_CONTROL_PAUSE: 
-            ServiceStatus.dwCurrentState = SERVICE_PAUSED; 
-            break; 
- 
-        case SERVICE_CONTROL_CONTINUE: 
-            ServiceStatus.dwCurrentState = SERVICE_RUNNING; 
-            break; 
- 
-        case SERVICE_CONTROL_STOP: 
-            sprintf(g_Msg, "Stopping...\n");
-            WriteInLogFile(g_Msg);
-            
-			ServiceStatus.dwWin32ExitCode = 0; 
-            ServiceStatus.dwCurrentState  = SERVICE_STOP_PENDING; 
-            ServiceStatus.dwCheckPoint    = 0; 
-            ServiceStatus.dwWaitHint      = 0; 
- 
-            running = false;
-
-            if ( !SetServiceStatus( ServiceStatusHandle, &ServiceStatus) )
-            { 
-				sprintf(g_Msg,"NFSU:LAN SetServiceStatus() error %ld\n",GetLastError() ); 
-                WriteInLogFile(g_Msg);
-            } 
-
-            sprintf(g_Msg, "NFSU:LAN leaving handler \n", 0 ); 
-            WriteInLogFile(g_Msg);
-            
-			return; 
- 
-        case SERVICE_CONTROL_INTERROGATE: 
-            break; 
- 
-        default: 
-            sprintf(g_Msg, "NFSU:LAN unrecognized control code %ld\n", dwControl ); 
-            WriteInLogFile(g_Msg);
-    } 
- 
-    // Send current status. 
-    if ( !SetServiceStatus(ServiceStatusHandle, &ServiceStatus) ) 
-    { 
-        sprintf(g_Msg,"NFSU:LAN SetServiceStatus() error %ld\n", GetLastError() ); 
-        WriteInLogFile( g_Msg );
-    } 
-
-    return; 
-} 
-#endif
 
 
 
@@ -8072,14 +7954,6 @@ bool InitServer(){
 
 	sprintf(log, "-----------\n");				Log(log);
 
-#ifdef _WIN32
-	WSAData wda;
-	if(WSAStartup(MAKEWORD( 2, 2 ), &wda)!=0){
-		sprintf(log, "[error] Could not init winsocks.\n");
-		Log(log);
-		return false;
-	}
-#endif
 
 	//making sockets
 	RedirectSocket = socket(AF_INET,SOCK_STREAM,0);
@@ -8088,7 +7962,6 @@ bool InitServer(){
 	ClientReportingSocket = socket(AF_INET, SOCK_DGRAM, 0);
 	ClientReportingSocketTcp =  socket(AF_INET, SOCK_STREAM, 0);
 
-#ifndef _WIN32
 	//let the server be restarted while connections of the previous run are still in
 	//TIME_WAIT, otherwise bind() fails with "address already in use" for up to a minute
 	int reuse = 1;
@@ -8096,7 +7969,6 @@ bool InitServer(){
 	setsockopt(ListeningSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 	setsockopt(ReportingSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 	setsockopt(ClientReportingSocketTcp, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-#endif
 
 	//binding them to specific ports
 	SOCKADDR_IN localsin;
@@ -8276,237 +8148,19 @@ void DeInitServer(){
 	//closing logfile
 	if(logfil!=NULL) fclose(logfil);
 
-#ifdef _WIN32
-	//unloading winsocks
-	WSACleanup();
-#endif
 };
 
-#ifdef NT_SERVICE
-// Second function to implement
-VOID WINAPI ServiceMain( DWORD argc, LPTSTR *argv ) 
-{ 
-//    DWORD status; 
-//    DWORD specificError; 
-
-    ServiceStatus.dwServiceType        = SERVICE_WIN32_OWN_PROCESS; 
-    ServiceStatus.dwCurrentState       = SERVICE_START_PENDING; 
-    ServiceStatus.dwControlsAccepted   = SERVICE_ACCEPT_STOP; 
-    ServiceStatus.dwWin32ExitCode      = 0; 
-    ServiceStatus.dwServiceSpecificExitCode = 0; 
-    ServiceStatus.dwCheckPoint         = 0; 
-    ServiceStatus.dwWaitHint           = 0; 
- 
-    ServiceStatusHandle = RegisterServiceCtrlHandler( "NFSU:LAN", ServiceCtrlHandler ); 
- 
-    if ( ServiceStatusHandle == (SERVICE_STATUS_HANDLE) 0 ) 
-    { 
-        sprintf(g_Msg, "NFSU:LAN RegisterServiceCtrlHandler() failed %d\n", GetLastError() ); 
-        WriteInLogFile( g_Msg );
-        return; 
-    } 
- 
-//    status = ServiceInitialization( argc, argv, &specificError ); 
-//    if ( status != NO_ERROR ) 
-//    { 
-//        ServiceStatus.dwCurrentState       = SERVICE_STOPPED; 
-//        ServiceStatus.dwCheckPoint         = 0; 
-//        ServiceStatus.dwWaitHint           = 0; 
-//        ServiceStatus.dwWin32ExitCode      = status; 
-//        ServiceStatus.dwServiceSpecificExitCode = specificError; 
-// 
-//        SetServiceStatus( ServiceStatusHandle, &ServiceStatus ); 
-//        return; 
-//    } 
-
-    ServiceStatus.dwCurrentState       = SERVICE_START_PENDING; 
-    ServiceStatus.dwCheckPoint         = 0; 
-    ServiceStatus.dwWaitHint           = 0; 
- 
-    if ( !SetServiceStatus( ServiceStatusHandle, &ServiceStatus ) ) 
-    { 
-        sprintf( g_Msg,"NFSU:LAN SetServiceStatus() error %ld\n", GetLastError() ); 
-        WriteInLogFile(g_Msg);
-    } 
-
-    running = InitServer();
-
-	if(running){
-		sprintf( g_Msg, "Just before processing Loop...\n" );
-		WriteInLogFile(g_Msg);
-
-		ServiceStatus.dwCurrentState       = SERVICE_RUNNING; 
-		ServiceStatus.dwCheckPoint         = 0; 
-		ServiceStatus.dwWaitHint           = 0; 
-	 
-		if ( !SetServiceStatus( ServiceStatusHandle, &ServiceStatus ) ) 
-		{ 
-			sprintf( g_Msg,"NFSU:LAN SetServiceStatus() error %ld\n", GetLastError() ); 
-			WriteInLogFile(g_Msg);
-		} 
-
-
-		while (running)
-		{
-			Sleep(10);
-		}
-		DeInitServer();
-	}
- 
-    ServiceStatus.dwCurrentState = SERVICE_STOPPED; 
-    
-	// Send current status. 
-    if (!SetServiceStatus(ServiceStatusHandle, &ServiceStatus)) 
-    { 
-        sprintf(g_Msg,"HelloService! SetServiceStatus error %ld\n", GetLastError() ); 
-        WriteInLogFile( g_Msg );
-    } 
- 
-    return; 
-} 
-#endif
 
 
 int main(int argc, char* argv[]){
 
-#ifdef WIN32
-	WCHAR path[MAX_PATH];
-	DWORD dwRet;
-
-	GetModuleFileNameW(NULL, path, MAX_PATH);
-	for (int i = std::wcslen(path) - 1; i > 0; i--)
-	{
-		if (path[i] == '\\')
-		{
-			path[i] = '\0';
-			break;
-		}
-	}
-	// set working directory to the program executing path
-	SetCurrentDirectoryW(path);
-#endif
 
 	for(int k=0;k<30;k++) arr[k]=(char*)&arr2[k];
-#ifdef NT_SERVICE	
-//	The SERVICE_TABLE_ENTRY structure is used by the StartServiceCtrlDispatcher function
-//	to specify the ServiceMain function for a service that can run in the calling process.
 
-	SERVICE_TABLE_ENTRY DispatchTable[] = { { "NFSU:LAN", ServiceMain }, { 0, 0 } };
-
-    sprintf( g_Msg, "Log opened\n" );
-    WriteInLogFile( g_Msg );
-
-	// Install a Service if -i switch used
-    if ( argc > 1 && !( stricmp(argv[1], "-i") ) )
-	{
-        char szBuffer[255];
-        char szPath[MAX_PATH];
-
-        sprintf( g_Msg, "First Calling OpenSCManager() \n");
-        WriteInLogFile( g_Msg );
-
-//		The OpenSCManager function establishes a connection to the Service Control Manager(SCM) 
-//		on the specified computer and opens the specified service control manager database. 
-
-        SC_HANDLE scmHandle = OpenSCManager ( NULL, NULL, SC_MANAGER_ALL_ACCESS );
-
-        if (scmHandle == NULL) // Perform error handling.
-        {
-            sprintf( g_Msg, "NFSU:LAN OpenSCManager error = %d\n", GetLastError() ); 
-            WriteInLogFile(g_Msg);
-        }
-
-        GetModuleFileName( GetModuleHandle(NULL), szPath, MAX_PATH );
-        
-        strcpy( szBuffer, "\"" );
-        strcat( szBuffer, szPath );
-        strcat( szBuffer, "\"" );
- 
-		//printf( "\n CreateService()! Installing Service %s\n", szPath );
-
-        SC_HANDLE scHandle;
-		scHandle = CreateService (
-			scmHandle, 
-			"NFSU:LAN", 
-            "NFSU:LAN", 
-			SERVICE_ALL_ACCESS, 
-            SERVICE_WIN32_OWN_PROCESS, 
-            SERVICE_AUTO_START, 
-            SERVICE_ERROR_NORMAL, 
-            szBuffer, NULL, NULL, NULL, NULL, NULL );
-
-        if ( scHandle == NULL ) // Process error
-        {
-            sprintf(g_Msg, "NFSU:LAN CreateService error = %d\n", GetLastError() ); 
-            WriteInLogFile(g_Msg);
-		}else{
-			printf("NFSU:LAN service installed...");
-		}
-
-        CloseServiceHandle(scHandle);
-        CloseServiceHandle(scmHandle);
-
-    }
-    else if ( argc > 1 && !( stricmp(argv[1], "-u" ) ) ) // Uninstall the Service
-    {
-        SC_HANDLE scmHandle = OpenSCManager (NULL, NULL, SC_MANAGER_ALL_ACCESS);
-
-        if (scmHandle == NULL) // Perform error handling.
-        {
-            sprintf(g_Msg, "NFSU:LAN OpenSCManager error = %d\n", GetLastError() ); 
-            WriteInLogFile(g_Msg);
-        }
-   
-		SC_HANDLE scHandle;
-        scHandle = OpenService( scmHandle, "NFSU:LAN", SERVICE_ALL_ACCESS );
-		if(DeleteService( scHandle )!=0){
-	        printf("NFSU:LAN service uninstalled...");
-		}else{
-			switch(GetLastError()){
-				case ERROR_ACCESS_DENIED:
-					printf("Access denied\n");
-					break;
-				case ERROR_INVALID_HANDLE:
-					printf("Invalid handle\n");
-					break;
-				case ERROR_SERVICE_MARKED_FOR_DELETE:
-					printf("The specified service has already been marked for deletion.");
-					break;
-				default:
-					printf("Error\n");
-					break;
-			}
-		}
-    }
-    else
-    {
-		SC_HANDLE scHandle;
-
-		SC_HANDLE scmHandle = OpenSCManager (NULL, NULL, SC_MANAGER_ALL_ACCESS);
-        scHandle = OpenService( scmHandle, "NFSU:LAN", SERVICE_ALL_ACCESS );
-
-		if(scHandle){
-			CloseHandle(scHandle);
-			if ( !StartServiceCtrlDispatcher(DispatchTable) ) 
-			{ 
-				//ghmm smth wrong
-				printf("To install service use param -i\nTo uninstall service use param -u\n");
-			}
-		}else{
-			//service is not installed but is started without params
-			printf("To install service use param -i\nTo uninstall service use param -u\n");
-		}
-    } 
-
-    return 0;
-#endif
-
-#ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
 	//line-buffer stdout: when it is not a terminal (systemd journal, docker logs, a pipe)
 	//nothing would show up until 4k of log had piled up, and the tail was lost on exit
 	setvbuf(stdout, NULL, _IOLBF, 0);
-#endif
 
 	EnableLogFile = true;
 	EnableLogScreen = true;
@@ -8523,21 +8177,17 @@ int main(int argc, char* argv[]){
 	BanRoomsCreation = false;
 	BanCheater = false;
 
-#ifndef _WIN32
 	bool daemon=false;
 	bool writepid=false;
-#endif
 
 	//parse commandline
 	for(int k=1;k<argc;k++){
-#ifndef _WIN32
 		if(stricmp(argv[k], "-d")==0){
 			daemon=true;
 		}
 		if(stricmp(argv[k], "-p")==0){
 			writepid=true;
 		}
-#endif
 		if(stricmp(argv[k], "enablelogfile")==0){
 			EnableLogFile=true;
 		}
@@ -8582,7 +8232,6 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-#ifndef _WIN32
 	if(daemon){
 		//diable output to console in deamon mode
 		EnableLogScreen=false;
@@ -8609,7 +8258,6 @@ int main(int argc, char* argv[]){
 			}
 		}
 	}	
-#endif
 	bool started = InitServer();
 	if(started){
 		while(running){

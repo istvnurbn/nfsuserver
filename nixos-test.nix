@@ -3,7 +3,7 @@
 #   nix-build nixos-test.nix
 #
 # Boots a server with the firewall opened, a server with the firewall left
-# closed and a client, and plays the part of the game and of the launcher
+# closed and a client, and plays the part of the game and of a server list
 # against them.
 {
   pkgs ? import <nixpkgs> { },
@@ -24,7 +24,7 @@ in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
 
-  # socat plays the game, the launcher and the tracker
+  # socat plays the game, a server list and the tracker
   defaults =
     { pkgs, ... }:
     {
@@ -198,7 +198,7 @@ pkgs.testers.runNixOSTest {
             " --sees out here=198.51.100.1 lan=198.51.100.1 out=198.51.100.50"
         )
 
-    with subtest("the launcher gets its answers"):
+    with subtest("server lists get their answers"):
         info = client.succeed("socat -u TCP:server:10800 -")
         assert info.endswith("|*nix|1.0.5|VM test server"), info
         stats = client.succeed("socat -u TCP:server:10980 -")

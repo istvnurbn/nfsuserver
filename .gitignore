@@ -37,11 +37,6 @@ result-*
 
 # Original content
 
-.vs
-Debug
-Release
-*.user
-*.aps
 *.dat
 nfsuserver/*.log
 nfsuserver/*.o

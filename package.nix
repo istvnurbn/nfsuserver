@@ -10,8 +10,8 @@ stdenv.mkDerivation {
   # NFSU_LAN_VERSION in nfsuserver/nfsuserver.cpp
   version = "1.0.5";
 
-  # Only what the server is built from. Editing the nix files, the README or
-  # the Windows launcher does not cause a rebuild, and logs or *.dat databases
+  # Only what the server is built from. Editing the nix files or the README does
+  # not cause a rebuild, and logs or *.dat databases
   # left behind by a local test run never end up in the world-readable store.
   src = lib.fileset.toSource {
     root = ./nfsuserver;

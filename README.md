@@ -5,15 +5,17 @@ This server was initially developed by [3 PriedeZ](http://3priedez.net)
 
 It support only 1-st [Need for Speed: Underground](https://en.wikipedia.org/wiki/Need_for_Speed:_Underground), but not Underground 2.
 
+This fork runs on Linux only; the Windows build and the Windows launcher of the original are gone.
+
 ## Server Installation
 
 ### Linux
 
-Download static binary from [Releases](https://github.com/HarpyWar/nfsuserver/releases) or build it from sources:
+Build it from source:
 
 ```
-apt-get install git make build-essential
-git clone https://github.com/HarpyWar/nfsuserver.git
+apt-get install git make build-essential libsqlite3-dev libcrypt-dev
+git clone https://github.com/istvnurbn/nfsuserver.git
 cd nfsuserver/nfsuserver
 make
 ./nfsuserver
@@ -66,24 +68,6 @@ services.nfsuserver = {
 
 To only build the server run `nix-build`. `result/bin/nfsuserver` has to be started in a directory that contains `nfsu.conf` and `news.txt`, samples are in `result/share/nfsuserver`.
 
-### Windows
-
-Download `nfsuserver.1.0.4.win32.zip` from [Releases](https://github.com/HarpyWar/nfsuserver/releases) or use Visual Studio to build own executable (uncomment [NT_SERVICE](https://github.com/HarpyWar/nfsuserver/blob/master/nfsuserver/win_nix.h#L5) flag for Windows service mode.). For compilation you have to install [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk/).
-
-`nfsuserver.exe` is for normal start, not a service.
-
-To install a server as a Windows Service run:
-```
-nfsuserver_svc.exe -i
-```
-To uninstall run:
-```
-nfsuserver_svc.exe -u
-```
-
-
-
-
 ## Server Configuration
 
 Edit `nfsu.conf` and `news.txt` to suit your needs.
@@ -114,10 +98,10 @@ The server requires the following ports to be forwarded:
 
 | Port | Used for |
 | --- | --- |
-| 10900 TCP | Redirector: first connection of a game that is pointed at the server with a `hosts` entry instead of the launcher |
+| 10900 TCP | Redirector: the first connection of a game, which asks where the lobby is |
 | 10901 TCP | Lobby: accounts, rooms, chat and matchmaking |
-| 10800 TCP | Server info for the launcher, which shows the server as offline without it, and for the public server list |
-| 10800 UDP | `Find server` of the launcher, which only works within a local network |
+| 10800 TCP | Server info for server lists |
+| 10800 UDP | Server discovery within a local network |
 | 10980 TCP | Statistics for the scripts in `web/` |
 
 The race itself is played peer to peer between the games of the players and does not pass through the server. For that the player who hosts needs port 3658 UDP, see [Client Configuration](#client-configuration). It is not a port of the server.
@@ -127,7 +111,7 @@ The race itself is played peer to peer between the games of the players and does
 The server tells every game where to find the others, and what it tells depends on who it is for:
 
 * Players on the machine of the server or in its private network (a VPN counts as one) get to know each other by their private addresses.
-* To players outside they are announced with `serverexternalip`. So set it whenever the server is behind a router, also if everybody outside uses the launcher.
+* To players outside they are announced with `serverexternalip`. So set it whenever the server is behind a router.
 * A player on the machine of the server is announced to the others in its network with the address they reach the server on, not with `127.0.0.1`.
 
 For a race between players inside and outside, port 3658 UDP has to be forwarded to the machine of the player inside who hosts, not to the server. A router can do that for one machine only.
@@ -135,39 +119,34 @@ For a race between players inside and outside, port 3658 UDP has to be forwarded
 
 ## Client Configuration
 
-1. Download and run [nfsuclient.exe](https://github.com/HarpyWar/nfsuserver/releases/download/client/nfsuclient.exe). Click on `Get Game` button to download ready to play NFSU game v1.4 with noCD and Widescreen with HD resolution.
+The game finds its server by looking up `ps2nfs04.ea.com`. Point that name at your server in one of two ways:
 
-2. Click `Get public serverlist` or `Add Server` to put your server address manually, and then click `Use Server`
+* **The `hosts` file.** Add a line with the address of the server:
 
-3. Run the game &rarr; Select `Play Online` &rarr; Create a new profile, agree with rules and click `Use Profile`
+  ```
+  203.0.113.7 ps2nfs04.ea.com
+  ```
 
-After a login you have to select car and join a room to create/join a game. Note that hosting a lobby requires port 3658 UDP to be forwarded to your own computer: it is the port the games of the other players connect to.
+  On Windows the file is `C:\Windows\System32\drivers\etc\hosts`, and editing it needs administrator rights. On Linux (Wine, Proton) it is `/etc/hosts` of the Linux system: Wine resolves names through Linux, not through the `hosts` file inside its prefix. On NixOS:
 
-![NFSU Lobby](http://i.imgur.com/ntGM3VF.jpg)
+  ```nix
+  networking.hosts."203.0.113.7" = [ "ps2nfs04.ea.com" ];
+  ```
 
-### Linux (Wine, Proton)
+* **[NFSUServerChanger](https://github.com/Pelorojo/NFSUServerChanger).** A mod for the game that sets the server without the `hosts` file, on Windows and under Wine. Set its Host option to the name or address of the server.
 
-The launcher cannot redirect the game here. It writes the address of the server into the Windows `hosts` file inside the Wine prefix, but Wine does not read that file: names are resolved by the Linux system. So point `ps2nfs04.ea.com`, the name the game looks up, at the server in the `hosts` file of Linux:
+Then run the game &rarr; select `Play Online` &rarr; create a new profile, agree with the rules and click `Use Profile`. After a login, select a car and join a room to create or join a game.
 
-```
-# /etc/hosts
-203.0.113.7 ps2nfs04.ea.com
-```
-
-On NixOS:
-
-```nix
-networking.hosts."203.0.113.7" = [ "ps2nfs04.ea.com" ];
-```
-
-Then start the game without the launcher and continue with step 3. The game now asks the server itself where the lobby is, so
+The game first asks the server where the lobby is, so
 
 * port 10900 TCP of the server has to be reachable, and
 * a server behind NAT needs `serverexternalip` set in `nfsu.conf`.
 
 If the game runs on the machine of the server, use `127.0.0.1`. On another machine in the LAN of a server with `serverexternalip` set, the game is sent to that public address for the lobby and depends on the router letting it back in (NAT loopback).
 
-To host races, port 3658 UDP has to be open in the firewall of your own machine as well, on NixOS with `networking.firewall.allowedUDPPorts = [ 3658 ];`.
+Hosting a race needs port 3658 UDP forwarded to your own computer and open in its firewall (on NixOS `networking.firewall.allowedUDPPorts = [ 3658 ];`): it is the port the games of the other players connect to.
+
+![NFSU Lobby](http://i.imgur.com/ntGM3VF.jpg)
 
 
 ## Documentation
