@@ -6246,8 +6246,10 @@ threadfunc IOThread(void * Dummy){
 			if(temp->Abort){
 				sprintf(log, "Aborting connection @ %s. IP : %s, SessionID : %u\n", con->Name, inet_ntoa(temp->remote_ip.sin_addr), temp->id);
 				Log(log);
-				con->RemoveConnection(temp);				
-				if(temp->user!=NULL){					
+				con->RemoveConnection(temp);
+				// rooms and games are shared with ListenerWorker, which holds this lock while it works
+				con->mut.Lock();
+				if(temp->user!=NULL){
 					temp->user->Connection=NULL;
 					if(temp->user->CurrentRoom!=NULL){
 						if(temp->user->Game!=NULL){
@@ -6265,8 +6267,9 @@ threadfunc IOThread(void * Dummy){
 							Server.Rooms.RemoveRoom(Room);
 							free(Room);
 						}
-					}					
-				}				
+					}
+				}
+				con->mut.Unlock();
 				temp->IncomingMessages.Clear();
 				temp->IncomingMessages.mut.DeInit();
 				temp->OutgoingMessages.Clear();
@@ -6283,15 +6286,20 @@ threadfunc IOThread(void * Dummy){
 					sprintf(log, "Sending outgoing message @ %s. Command: %s, IP : %s, SessionID : %u\n", con->Name, msg->Message, inet_ntoa(temp->remote_ip.sin_addr), temp->id);
 					Log(log);
 				}
-				k=send(temp->sock, msg->Message, msg->Size, 0);
-				if(k!=msg->Size){
-					closesocket(temp->sock);
-					temp->Abort=true;					
-					break;
-				}
+				bool sent = send(temp->sock, msg->Message, msg->Size, 0) == msg->Size;
 				free(msg->Message);
 				free(msg);
+				if(!sent){
+					// the abort above closes the socket, once: a second close could hit
+					// a new connection that got the same descriptor in the meantime
+					temp->Abort=true;
+					break;
+				}
 				msg=temp->OutgoingMessages.RemoveFirstMessage();
+			}
+			if(temp->Abort){
+				temp=temp->Next;
+				continue;
 			}
 			FD_ZERO(&check);
 			FD_SET(temp->sock, &check);
@@ -6340,7 +6348,6 @@ threadfunc IOThread(void * Dummy){
 								sprintf(log, "Receiving command failed - connection closed @ %s. IP : %s, SessionID : %u\n", con->Name, inet_ntoa(temp->remote_ip.sin_addr), temp->id);
 								Log(log);
 							}
-							closesocket(temp->sock);
 							temp->Abort=true;
 						}else{
 						//sprintf(log, "Receiving data succeed @ %s : %s\n", con->Name, inet_ntoa(temp->remote_ip.sin_addr));
@@ -6441,11 +6448,11 @@ threadfunc RedirectorWorker(void *Dummy){
 					sprintf(log, "Adding outgoing message : server_info_to_nfsu : %s\n", inet_ntoa(temp->remote_ip.sin_addr));
 					Log(log);
 				}
-				sprintf(arr2[0], "ADDR=%s", LobbyAddrFor(temp));
-				sprintf(arr2[1], "PORT=10901");
-				sprintf(arr2[2], "SESS=1072010288");
-				sprintf(arr2[3], "MASK=0295f3f70ecb1757cd7001b9a7a5eac8");
-				int k=MakeCommand(buffer, "@dir", arr, 4);
+				// its own parameters: arr2 belongs to ListenerWorker, under another lock
+				char addr[64];
+				snprintf(addr, sizeof(addr), "ADDR=%s", LobbyAddrFor(temp));
+				char* params[4] = { addr, (char*)"PORT=10901", (char*)"SESS=1072010288", (char*)"MASK=0295f3f70ecb1757cd7001b9a7a5eac8" };
+				int k=MakeCommand(buffer, "@dir", params, 4);
 				tmsg=(MessageClass*)calloc(1, sizeof(MessageClass));
 				tmsg->Message=(char*)calloc(k, sizeof(char));
 				memcpy(tmsg->Message, buffer, k);
@@ -7683,21 +7690,26 @@ threadfunc StatThread(void *Dummy){
 			}
 
 			sprintf(tempBuff, "%u|%u|%u|%s|%s|%s|%u|%u|%u~~~", ClientConnections.Count, Server.Rooms.Count, status, SERVER_PLATFORM, NFSU_LAN_VERSION, Server.Name, ban_tj_cheat, players_in_race, ban_rooms_creation);
-			send(cl, tempBuff, strlen(tempBuff), 0);
+			std::string reply(tempBuff);
 
+			// walk the rooms under ListenerWorker's lock, send after it: a slow
+			// client must not hold up the lobby
+			ClientConnections.mut.Lock();
 			tr=Server.Rooms.First;
 			while(tr!=NULL){
 				sprintf(tempBuff, "%s|%u|[", tr->Name, tr->Users.Count);
-				send(cl, tempBuff, strlen(tempBuff), 0);
+				reply+=tempBuff;
 				tu=tr->Users.First;
 				while(tu!=NULL){
 					sprintf(tempBuff, "%s|", tu->User->Personas[tu->User->SelectedPerson]);
-					send(cl, tempBuff, strlen(tempBuff), 0);
+					reply+=tempBuff;
 					tu=tu->Next;
 				}
-				send(cl, "]", 1, 0);
+				reply+="]";
 				tr=tr->Next;
 			}
+			ClientConnections.mut.Unlock();
+			send(cl, reply.data(), reply.size(), 0);
 			closesocket(cl);
 		}
 	}
@@ -7711,6 +7723,7 @@ threadfunc Maintenance(void *Dummy){
 	while(running){
 		Sleep(1000);
 		time(&curtime);
+		ClientConnections.mut.Lock(); // ListenerWorker may be using the players
 		user=Server.Users.First;
 		while(user!=NULL){
 			user->Idle++;
@@ -7724,6 +7737,7 @@ threadfunc Maintenance(void *Dummy){
 				user=user->Next;
 			}
 		}
+		ClientConnections.mut.Unlock();
 	}
 	RETURNFROMTHREAD;
 };
