@@ -591,7 +591,8 @@ threadfunc ListenerWorker(void *Dummy){
 					case 'd': //gdel
 						if (strncmp(buf + 2, "el", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
 							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
-							if (game != NULL) {
+							// only the host (its first player) deletes the game
+							if (game != NULL && game->Users.First != NULL && game->Users.First->User == user) {
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "gdel", NULL, 0));
 
 								while (game->Count > 0) {
@@ -610,7 +611,8 @@ threadfunc ListenerWorker(void *Dummy){
 					case 's': //gsta
 						if (strncmp(buf + 2, "ta", 2) == 0 && Field(buf + 12, "NAME", field, sizeof(field))) {
 							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
-							if (game == NULL) break;
+							// only the host (its first player) starts the race
+							if (game == NULL || game->Users.First == NULL || game->Users.First->User != user) break;
 							if (game->Users.Count < game->min) {
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "gstanepl", NULL, 0));
 							}
