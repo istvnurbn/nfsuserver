@@ -8121,13 +8121,14 @@ threadfunc ListenerWorker(void *Dummy){
 									sprintf(log, "[warn] A PASS from %s does not decode\n", temp->IP);
 									Log(log);
 								}
-								else login = AccountLogin(field, pass, name, personas);
+								else login = AccountLogin(field, pass, temp->IP, name, personas);
 								tmp = name;
 								if (login != ACC_OK) {
 									const char* reply = "authfrea"; // ACC_ERROR: "File record read error"
 									if (login == ACC_NOUSER) reply = "authimst";
 									if (login == ACC_BADPASS) reply = "authipas";
-									if (login == ACC_BANNED) reply = "authlock"; // "Account locked"
+									if (login == ACC_BANNED || login == ACC_LOCKED) reply = "authlock"; // "Account locked"
+									if (login == ACC_THROTTLED) reply = "authmany"; // "Too many requests made"
 									if (login == ACC_WRONG) reply = "authpass";
 									if (Verbose) {
 										sprintf(log, "Login refused: %s\n", reply);

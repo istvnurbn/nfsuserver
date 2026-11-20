@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
+#include <map>
+#include <string>
 #include <crypt.h>
 #include <sqlite3.h>
 #include "accounts.h"
@@ -9,6 +12,36 @@
 void Log( char * log );
 
 static sqlite3 * db = NULL;
+
+// Failed logins, kept in memory: a restart forgets them. An account locks after
+// 5 wrong passwords, except for the address it last logged in from, so nobody can
+// lock a player out; an address is blocked after 20 failed logins on any accounts.
+struct Strikes { int count; time_t first, until; };
+typedef std::map<std::string, Strikes> StrikeMap;
+static StrikeMap accountStrikes, addressStrikes;
+static const int WINDOW = 15 * 60, ACCOUNT_LIMIT = 5, ADDRESS_LIMIT = 20;
+
+static bool Blocked( StrikeMap & m, const std::string & key, time_t now ) {
+	StrikeMap::iterator it = m.find (key);
+	return it != m.end () && it->second.until > now;
+}
+
+// count a failure: the limit within WINDOW seconds blocks the key for WINDOW seconds
+static void Strike( StrikeMap & m, const std::string & key, int limit, time_t now ) {
+	if (m.size () > 10000) // guessing from many addresses must not fill the memory
+		for (StrikeMap::iterator it = m.begin (); it != m.end ();)
+			if (it->second.until <= now && now - it->second.first > WINDOW) m.erase (it++);
+			else ++it;
+	Strikes & s = m[key];
+	if (now - s.first > WINDOW) {
+		s.count = 0;
+		s.first = now;
+	}
+	if (++s.count >= limit) {
+		s.until = now + WINDOW;
+		s.count = 0;
+	}
+}
 
 static void DbError( const char * what ) {
 	char log[512];
@@ -90,7 +123,8 @@ bool DbOpen( const char * path ) {
 		" is_admin INTEGER NOT NULL DEFAULT 0,"
 		" banned INTEGER NOT NULL DEFAULT 0,"
 		" created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-		" last_login TEXT)") == SQLITE_DONE
+		" last_login TEXT,"
+		" last_ip TEXT)") == SQLITE_DONE // where the last login came from, never locked out
 		&& Exec (
 		"CREATE TABLE personas ("
 		" name TEXT PRIMARY KEY COLLATE NOCASE,"
@@ -198,20 +232,29 @@ bool LoadPersonas( const char * account, char personas[4][100] ) {
 	return rc == SQLITE_DONE;
 }
 
-int AccountLogin( const char * given, const char * pass, char * name, char personas[4][100] ) {
+int AccountLogin( const char * given, const char * pass, const char * ip, char * name, char personas[4][100] ) {
+	time_t now = time (NULL);
+	if (Blocked (addressStrikes, ip, now)) return ACC_THROTTLED;
+
 	sqlite3_stmt * st;
-	int rc = Run (&st, "SELECT name, password_hash, banned FROM accounts WHERE name = ?", given);
+	int rc = Run (&st, "SELECT name, password_hash, banned, last_ip FROM accounts WHERE name = ?", given);
 	if (rc != SQLITE_ROW) {
 		sqlite3_finalize (st);
-		return rc == SQLITE_DONE ? ACC_NOUSER : ACC_ERROR;
+		if (rc != SQLITE_DONE) return ACC_ERROR;
+		Strike (addressStrikes, ip, ADDRESS_LIMIT, now);
+		return ACC_NOUSER;
 	}
 	char hash[128] = { 0 };
 	snprintf (name, 100, "%s", (const char *)sqlite3_column_text (st, 0));
 	if (sqlite3_column_type (st, 1) != SQLITE_NULL)
 		snprintf (hash, sizeof (hash), "%s", (const char *)sqlite3_column_text (st, 1));
 	bool banned = sqlite3_column_int (st, 2) != 0;
+	bool trusted = sqlite3_column_type (st, 3) != SQLITE_NULL && strcmp ((const char *)sqlite3_column_text (st, 3), ip) == 0;
 	sqlite3_finalize (st);
 
+	std::string account (name);
+	for (size_t i = 0; i < account.size (); i++) account[i] = (char)tolower ((unsigned char)account[i]);
+	if (!trusted && Blocked (accountStrikes, account, now)) return ACC_LOCKED;
 
 	if (hash[0] == 0) {
 		// imported from rusers.dat: the first login sets the password
@@ -219,10 +262,15 @@ int AccountLogin( const char * given, const char * pass, char * name, char perso
 		if (!Hash (pass, hash, sizeof (hash))) return ACC_ERROR;
 		if (Exec ("UPDATE accounts SET password_hash = ? WHERE name = ?", hash, name) != SQLITE_DONE) return ACC_ERROR;
 	}
-	else if (!Verify (pass, hash)) return ACC_WRONG;
+	else if (!Verify (pass, hash)) {
+		Strike (addressStrikes, ip, ADDRESS_LIMIT, now);
+		if (!trusted) Strike (accountStrikes, account, ACCOUNT_LIMIT, now);
+		return ACC_WRONG;
+	}
 	if (banned) return ACC_BANNED;
 
-	Exec ("UPDATE accounts SET last_login = CURRENT_TIMESTAMP WHERE name = ?", name);
+	accountStrikes.erase (account);
+	Exec ("UPDATE accounts SET last_login = CURRENT_TIMESTAMP, last_ip = ? WHERE name = ?", ip, name);
 	return LoadPersonas (name, personas) ? ACC_OK : ACC_ERROR;
 }
 
