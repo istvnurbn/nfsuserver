@@ -7114,6 +7114,12 @@ threadfunc ListenerWorker(void *Dummy){
 								// VERS="pc/1.4": the digit after "pc/1."
 								k = (Field(buf + 12, "VERS", vers, sizeof(vers)) && strlen(vers) > 6) ? vers[6] - '0' : 1;
 
+								// a second login on this connection would leave the first player
+								// pointing at it after it closes
+								if (temp->user != NULL) {
+									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "authlogn", NULL, 0)); // "Already logged in"
+									break;
+								}
 								char pass[17], name[100], personas[4][100];
 								int login = ACC_WRONG;
 								if (!Field(buf + 12, "PASS", text, sizeof(text)) || !DecodePass(text, pass, sizeof(pass))) {
