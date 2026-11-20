@@ -60,7 +60,7 @@ services.nfsuserver = {
 
 * `settings` takes the keys of `nfsu.conf`, the file is generated from it. Room lists are written as lists, for example `rooms_ranked_circuit = [ "Global" "Europe" ];`. Other than in the sample `nfsu.conf`, `enablelogfile` and `logalltraffic` are off and `disabletimestamp` is on by default, because the log goes to the journal.
 * `openFirewall` opens the [ports of the server](#port-forwarding) in the firewall of the host. Behind a router they have to be forwarded as well.
-* The log is in the journal: `journalctl -u nfsuserver -f`. Accounts (`nfsu.db`) and statistics (`stat.dat`, `s*.dat`) are kept in `/var/lib/nfsuserver`.
+* The log is in the journal: `journalctl -u nfsuserver -f`. Accounts and statistics (`nfsu.db`) are kept in `/var/lib/nfsuserver`.
 * The service is sandboxed and restarted automatically when it stops.
 * `nix-build nixos-test.nix` boots the module in virtual machines and tests it.
 
@@ -88,11 +88,11 @@ nfsuserver_svc.exe -u
 
 Edit `nfsu.conf` and `news.txt` to suit your needs.
 
-After first start `server.log` and the account database `nfsu.db` should be created.
+After first start `server.log` and the database `nfsu.db` should be created.
 
 ### Accounts
 
-Accounts and personas are kept in the SQLite database `nfsu.db`, passwords as yescrypt hashes. The rules follow the game's own messages:
+Accounts, personas, stats and track records are kept in the SQLite database `nfsu.db`, passwords as yescrypt hashes. Each race report is saved as it arrives. The rules follow the game's own messages:
 
 * account names: 4 to 16 characters
 * persona names: 3 to 12 characters
@@ -106,7 +106,7 @@ Against password guessing:
 * 20 failed logins within 15 minutes, on any accounts, block an address for 15 minutes.
 * The counts are kept in memory; a restart clears them.
 
-**Coming from the original server:** the old `rusers.dat` stored no passwords. On its first start with an empty database the server imports the accounts and personas from a `rusers.dat` in its directory and leaves the file untouched. The first login to an imported account sets its password, so whoever logs in first with an old name claims it. Statistics stay in `stat.dat` for now.
+**Coming from the original server:** on its first start the server imports the accounts and personas from a `rusers.dat` in its directory, then the stats from `stat.dat` and the track records from the `s*.dat` files; it leaves the files untouched. Stats of personas that no longer exist are dropped. The old `rusers.dat` stored no passwords: the first login to an imported account sets its password, so whoever logs in first with an old name claims it.
 
 ### Port forwarding
 
