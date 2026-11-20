@@ -26,13 +26,15 @@ def connect(server, source="0.0.0.0"):
 
 
 def reply(player, command, body):
-    """The first answer to a message, whatever it is."""
+    """The first answer to a message, whatever it is. Messages starting with
+    + are news for every player (a room gone, a player in), not answers."""
     first = len(player.inbox)
     player.send(command, body)
     for _ in range(100):
         player.read(0.05)
-        if len(player.inbox) > first:
-            return player.inbox[first][0]
+        answers = [c for c, _ in player.inbox[first:] if not c.startswith("+")]
+        if answers:
+            return answers[0]
     sys.exit(f"no answer to {command} {body!r}")
 
 

@@ -20,6 +20,8 @@ let
   stats = "${pkgs.python3.interpreter} ${./tests}/stats.py";
   # games dropped while others join them, the status port read meanwhile
   stress = "${pkgs.python3.interpreter} ${./tests}/stress.py";
+  # moving between rooms, host-only game commands
+  rooms = "${pkgs.python3.interpreter} ${./tests}/rooms.py";
 in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
@@ -221,6 +223,9 @@ pkgs.testers.runNixOSTest {
 
     with subtest("race reports that must not count are refused, a quit race does not decide the next"):
         server.succeed("${stats} 127.0.0.1 cheats")
+
+    with subtest("moving between rooms leaves the old one, only the host starts or deletes a game"):
+        server.succeed("${rooms} 127.0.0.1")
 
     with subtest("players leaving games while others join them do not crash the server"):
         server.succeed("${stress} 127.0.0.1 10 0.02")
