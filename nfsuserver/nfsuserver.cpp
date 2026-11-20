@@ -390,6 +390,9 @@ threadfunc AcceptThread(void *Dummy){
 			sprintf(log, "Accepting client @ %s. IP : %s, ID : %u\n", acc->Name, inet_ntoa(temp->remote_ip.sin_addr), temp->id);
 			Log(log);
 		}
+		else {
+			Sleep(100); // out of file handles, say: retry without spinning at full CPU
+		}
 	}
 };
 
