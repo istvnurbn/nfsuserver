@@ -121,24 +121,22 @@ char ascii[256] =
 
 void base64_out(char* buf, char* obuf, int len) {
 	int nprbytes;
-	char* p = buf;
-	while (ascii[(int)*(p++)] <= 63);
 
 	nprbytes = len - 1;
 
 	while (nprbytes > 4 && *buf != '\0') {
-		*(obuf++) = (ascii[(int)*buf] << 2 | ascii[(int)buf[1]] >> 4);
-		*(obuf++) = (ascii[(int)buf[1]] << 4 | ascii[(int)buf[2]] >> 2);
-		*(obuf++) = (ascii[(int)buf[2]] << 6 | ascii[(int)buf[3]]);
+		*(obuf++) = (ascii[(unsigned char)*buf] << 2 | ascii[(unsigned char)buf[1]] >> 4);
+		*(obuf++) = (ascii[(unsigned char)buf[1]] << 4 | ascii[(unsigned char)buf[2]] >> 2);
+		*(obuf++) = (ascii[(unsigned char)buf[2]] << 6 | ascii[(unsigned char)buf[3]]);
 		buf += 4;
 		nprbytes -= 4;
 	}
 	if (nprbytes > 1)
-		*(obuf++) = (ascii[(int)*buf] << 2 | ascii[(int)buf[1]] >> 4);
+		*(obuf++) = (ascii[(unsigned char)*buf] << 2 | ascii[(unsigned char)buf[1]] >> 4);
 	if (nprbytes > 2)
-		*(obuf++) = (ascii[(int)buf[1]] << 4 | ascii[(int)buf[2]] >> 2);
+		*(obuf++) = (ascii[(unsigned char)buf[1]] << 4 | ascii[(unsigned char)buf[2]] >> 2);
 	if (nprbytes > 3)
-		*(obuf++) = (ascii[(int)buf[2]] << 6 | ascii[(int)buf[3]]);
+		*(obuf++) = (ascii[(unsigned char)buf[2]] << 6 | ascii[(unsigned char)buf[3]]);
 	*(obuf)++ = '\0';
 };
 
@@ -6538,7 +6536,7 @@ threadfunc ListenerWorker(void *Dummy){
 	char field[1024], text[900], vers[32];
 
 	char car_b64[9]; // car info in base64 from AUXI replica
-	char car_dec[6]; // decoded car info
+	char car_dec[8]; // decoded car info: 9 base64 characters give 6 bytes and a zero
 
 	MessageClass *msg;
 	UserClass *user;
