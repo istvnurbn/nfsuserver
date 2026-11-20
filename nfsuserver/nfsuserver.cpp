@@ -201,6 +201,33 @@ void LoadNews(){
     fclose(fil);
 };
 
+// Takes the player out of their game and room. An empty game goes, and so does
+// an empty room that players created. Returns the room left, or NULL when there
+// was none or it is gone. The caller holds ClientConnections.mut.
+static RoomClass* LeaveRoom(UserClass* user, char* buffer) {
+	RoomClass* room = user->CurrentRoom;
+	if (room == NULL) return NULL;
+	if (user->Game != NULL) {
+		GameClass* game = user->Game;
+		game->RemoveUser(user, buffer);
+		if (game->Count == 0) {
+			room->Games.RemoveGame(game);
+			free(game);
+		}
+		room->RefreshUser(user, buffer);
+	}
+	room->RemoveUser(user, buffer);
+	if (room->Count == 0 && !room->IsGlobal) {
+		Server.Rooms.RemoveRoom(room);
+		sprintf(arr2[0], "I=%u", room->ID);
+		arr[0] = (char*)&arr2[0];
+		BroadCastCommand(&Server.Users, "+rom", arr, 1, buffer);
+		free(room);
+		return NULL;
+	}
+	return room;
+}
+
 threadfunc IOThread(void * Dummy){
 	char log[1024];	
 	MessageClass *msg;
@@ -213,8 +240,6 @@ threadfunc IOThread(void * Dummy){
 	timeval tim;
 	tim.tv_sec=0;
 	tim.tv_usec=100;
-	GameClass *Game;
-	RoomClass *Room;
 
 	while(running){
 		temp=con->First;
@@ -227,23 +252,7 @@ threadfunc IOThread(void * Dummy){
 				con->mut.Lock();
 				if(temp->user!=NULL){
 					temp->user->Connection=NULL;
-					if(temp->user->CurrentRoom!=NULL){
-						if(temp->user->Game!=NULL){
-							Game=temp->user->Game;
-							Game->RemoveUser(temp->user, temp->Buffer);
-							if(Game->Count==0){
-								temp->user->CurrentRoom->Games.RemoveGame(Game);
-								free(Game);
-							}
-							temp->user->CurrentRoom->RefreshUser(temp->user, temp->Buffer);
-						}
-						Room=temp->user->CurrentRoom;
-						Room->RemoveUser(temp->user, temp->Buffer);
-						if((Room->Count==0)&&(!Room->IsGlobal)){
-							Server.Rooms.RemoveRoom(Room);
-							free(Room);
-						}
-					}
+					LeaveRoom(temp->user, temp->Buffer);
 				}
 				con->mut.Unlock();
 				temp->IncomingMessages.Clear();
@@ -699,6 +708,14 @@ threadfunc ListenerWorker(void *Dummy){
 							RoomClass* rom = Server.Rooms.RoomFromName(field);
 
 							if (rom != NULL) {
+								if (rom == user->CurrentRoom) break; // already there: a second entry would outlive the player
+								// leave the old room first, or it keeps the player after they are gone
+								RoomClass* left = LeaveRoom(user, buffer);
+								if (left != NULL) {
+									sprintf(arr2[0], "Z=%u/%u", left->ID, left->Count);
+									arr[0] = (char*)&arr2[0];
+									BroadCastCommand(&Server.Users, "+pop", arr, 1, buffer);
+								}
 								rom->AddUser(user, buffer);
 
 								sprintf(arr2[0], "Z=%u/%u", rom->ID, rom->Count);
@@ -721,31 +738,15 @@ threadfunc ListenerWorker(void *Dummy){
 								}
 							}
 							else {
+								// leave first: leaving writes arr2, which then holds the reply
+								unsigned int lident = user->CurrentRoom != NULL ? user->CurrentRoom->ID : 0;
+								RoomClass* rc = LeaveRoom(user, buffer);
+
 								sprintf(arr2[0], "IDENT=0");
 								sprintf(arr2[1], "NAME=");
 								sprintf(arr2[2], "COUNT=0");
-								if (user->CurrentRoom == NULL) {
-									sprintf(arr2[3], "LIDENT=0");
-								}
-								else {
-									sprintf(arr2[3], "LIDENT=%u", user->CurrentRoom->ID);
-								}
+								sprintf(arr2[3], "LIDENT=%u", lident);
 								sprintf(arr2[4], "LCOUNT=0");
-
-								RoomClass* rc = NULL;
-
-								if (user->CurrentRoom != NULL) {
-									rc = user->CurrentRoom;
-									user->CurrentRoom->RemoveUser(user, buffer);
-									if ((rc->Users.Count == 0) && (!rc->IsGlobal)) {
-										Server.Rooms.RemoveRoom(rc);
-										sprintf(arr2[0], "I=%u", rc->ID);
-										arr[0] = (char*)&arr2[0];
-										BroadCastCommand(&Server.Users, "+rom", arr, 1, buffer);
-										free(rc);
-									}
-								}
-
 								temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "move", arr, 5));
 
 								if (rc != NULL) {
