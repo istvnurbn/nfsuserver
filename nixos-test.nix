@@ -14,6 +14,8 @@ let
   lobbyAddresses = "${pkgs.python3.interpreter} ${./tests/lobby_addresses.py}";
   # messages that a game never sends; the script imports lobby_addresses.py
   badInput = "${pkgs.python3.interpreter} ${./tests}/bad_input.py";
+  # sign-up, login and personas; the script imports lobby_addresses.py
+  accounts = "${pkgs.python3.interpreter} ${./tests}/accounts.py";
 in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
@@ -207,6 +209,9 @@ pkgs.testers.runNixOSTest {
 
     with subtest("messages that a game never sends do not bring the server down"):
         server.succeed("${badInput} 127.0.0.1")
+    with subtest("accounts: name and password rules, wrong passwords, personas"):
+        server.succeed("${accounts} 127.0.0.1 new")
+
         assert server.succeed("systemctl show -p NRestarts --value nfsuserver.service").strip() == "0"
 
     with subtest("a restart does not trip over connections in TIME_WAIT"):
@@ -218,6 +223,10 @@ pkgs.testers.runNixOSTest {
         assert "ADDR=203.0.113.7\n" in reply, reply
         server.fail("journalctl -u nfsuserver -o cat | grep -F 'Could not bind'")
         assert server.succeed("systemctl show -p NRestarts --value nfsuserver.service").strip() == "0"
+
+    with subtest("accounts and personas survive a restart"):
+        server.wait_for_open_port(10901)
+        server.succeed("${accounts} 127.0.0.1 restarted")
 
     with subtest("a failed start is reported and retried"):
         server.succeed("systemctl stop nfsuserver.service")
@@ -238,6 +247,15 @@ pkgs.testers.runNixOSTest {
         )
         reply = client.succeed(ask_redirector.format("server"))
         assert "ADDR=203.0.113.7\n" in reply, reply
+
+    with subtest("accounts from an old rusers.dat are imported, the first login sets the password"):
+        server.succeed("systemctl stop nfsuserver.service")
+        server.succeed("rm /var/lib/nfsuserver/nfsu.db")
+        server.succeed("${accounts} /var/lib/nfsuserver/rusers.dat rusers")
+        server.succeed("systemctl start nfsuserver.service")
+        server.wait_for_open_port(10901)
+        server.succeed("journalctl -u nfsuserver -o cat | grep -F 'Imported 1 accounts from rusers.dat'")
+        server.succeed("${accounts} 127.0.0.1 imported")
 
     server.log(server.succeed("systemd-analyze security nfsuserver.service | tail -n 1"))
   '';
