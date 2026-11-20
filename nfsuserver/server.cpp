@@ -967,26 +967,4 @@ char* GetPlayerStat(const char* Name) {
 	return NULL;
 };
 
-void GetOppREP_Rating(const char* name, const char race_type, int& rep, int& rating) {
-	std::vector<PlayerStat>::iterator it = std::find(PS.begin(), PS.end(), name);
-	if (it == PS.end()) return;
-	switch (race_type) {
-	case 0:
-		rep = it->REP_Circ;
-		rating = it->Rating_Circ;
-		break;
-	case 1:
-		rep = it->REP_Sprint;
-		rating = it->Rating_Sprint;
-		break;
-	case 2:
-		rep = it->REP_Drag;
-		rating = it->Rating_Drag;
-		break;
-	case 3:
-		rep = it->REP_Drift;
-		rating = it->Rating_Drift;
-		break;
-	}
-};
 

@@ -239,3 +239,12 @@ const char* AddrFor(UserClass* about, UserClass* to);
 const char* LobbyAddrFor(ConnectionClass* con);
 char* GetPlayerStat(const char* Name);
 void GetOppREP_Rating(const char* name, const char race_type, int& rep, int& rating);
+
+// calcstat.cpp
+void CalcStat(const char* reporter, const char* opp1, const char* opp2, const char* opp3,
+	const int count, const int type, const int track, const int laps, const int place, const int disc);
+bool sort_REP_All(PlayerStat a, PlayerStat b);
+bool sort_REP_Circ(PlayerStat a, PlayerStat b);
+bool sort_REP_Sprint(PlayerStat a, PlayerStat b);
+bool sort_REP_Drag(PlayerStat a, PlayerStat b);
+bool sort_REP_Drift(PlayerStat a, PlayerStat b);

@@ -4,7 +4,7 @@
 CC   = g++
 WINDRES = windres.exe
 RES  = 
-OBJ  = nfsuserver.o objects.o server.o accounts.o $(RES)
+OBJ  = nfsuserver.o objects.o server.o accounts.o calcstat.o $(RES)
 LIBS =  -lpthread -lsqlite3 -lcrypt
 INCS =  #-I "." 
 BIN  = nfsuserver
@@ -32,3 +32,6 @@ objects.o: objects.cpp
 
 accounts.o: accounts.cpp
 	$(CC) -c accounts.cpp -o accounts.o $(CFLAGS)
+
+calcstat.o: calcstat.cpp
+	$(CC) -c calcstat.cpp -o calcstat.o $(CFLAGS)
