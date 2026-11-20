@@ -100,6 +100,11 @@ static void ImportRusers() {
 	Log (log);
 }
 
+static bool Upgrade( int version, bool (*schema)() );
+static bool Schema1();
+static bool Schema2();
+static void ImportStats();
+
 bool DbOpen( const char * path ) {
 	if (sqlite3_open (path, &db) != SQLITE_OK) {
 		DbError (path);
@@ -112,10 +117,23 @@ bool DbOpen( const char * path ) {
 	Run (&st, "PRAGMA user_version");
 	int version = sqlite3_column_int (st, 0);
 	sqlite3_finalize (st);
-	if (version > 0) return true;
 
-	// first start: schema and the one-time import in one transaction
+	// each schema version and its one-time import in one transaction
+	return (version >= 1 || Upgrade (1, Schema1))
+		&& (version >= 2 || Upgrade (2, Schema2));
+}
+
+static bool Upgrade( int version, bool (*schema)() ) {
+	char sql[64];
+	snprintf (sql, sizeof (sql), "PRAGMA user_version = %d", version);
 	Exec ("BEGIN");
+	if (schema () && Exec (sql) == SQLITE_DONE && Exec ("COMMIT") == SQLITE_DONE) return true;
+	Exec ("ROLLBACK");
+	return false;
+}
+
+// accounts and personas, imported from rusers.dat
+static bool Schema1() {
 	bool ok = Exec (
 		"CREATE TABLE accounts ("
 		" name TEXT PRIMARY KEY COLLATE NOCASE,"
@@ -132,9 +150,33 @@ bool DbOpen( const char * path ) {
 		" created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)") == SQLITE_DONE
 		&& Exec ("CREATE INDEX personas_account ON personas(account)") == SQLITE_DONE;
 	if (ok) ImportRusers ();
-	if (ok && Exec ("PRAGMA user_version = 1") == SQLITE_DONE && Exec ("COMMIT") == SQLITE_DONE) return true;
-	Exec ("ROLLBACK");
-	return false;
+	return ok;
+}
+
+// stats and track records, imported from stat.dat and s*.dat
+static bool Schema2() {
+	bool ok = Exec (
+		"CREATE TABLE stats ("
+		" persona TEXT NOT NULL COLLATE NOCASE REFERENCES personas(name) ON DELETE CASCADE,"
+		" mode TEXT NOT NULL," // all, circuit, sprint, drag, drift
+		" rating INTEGER NOT NULL, wins INTEGER NOT NULL, losses INTEGER NOT NULL,"
+		" disconnects INTEGER NOT NULL, rep INTEGER NOT NULL,"
+		" opp_rep INTEGER NOT NULL, opp_rating INTEGER NOT NULL," // opponents' averages
+		" PRIMARY KEY (persona, mode))") == SQLITE_DONE
+		&& Exec (
+		"CREATE TABLE track_records ("
+		" track INTEGER NOT NULL,"
+		" persona TEXT NOT NULL COLLATE NOCASE REFERENCES personas(name) ON DELETE CASCADE,"
+		" score INTEGER NOT NULL," // best lap in ms, or drift points on the drift tracks
+		" car INTEGER NOT NULL, dir INTEGER NOT NULL,"
+		" PRIMARY KEY (track, persona))") == SQLITE_DONE;
+	if (ok) ImportStats ();
+	// a persona without stats would crash CalcStat: give it what cper gives a new one
+	return ok && Exec (
+		"INSERT INTO stats SELECT p.name, m.mode, 9999, 0, 0, 0, 100, 101, 101 FROM personas p,"
+		" (SELECT 'all' AS mode UNION ALL SELECT 'circuit' UNION ALL SELECT 'sprint'"
+		"  UNION ALL SELECT 'drag' UNION ALL SELECT 'drift') m"
+		" WHERE NOT EXISTS (SELECT 1 FROM stats s WHERE s.persona = p.name)") == SQLITE_DONE;
 }
 
 void DbClose() {
@@ -297,4 +339,158 @@ int PersonaCreate( const char * account, const char * persona ) {
 
 bool PersonaDelete( const char * account, const char * persona ) {
 	return Exec ("DELETE FROM personas WHERE name = ? AND account = ?", persona, account) == SQLITE_DONE;
+}
+
+// ---- stats and track records ----
+
+static const char * const MODES[5] = { "all", "circuit", "sprint", "drag", "drift" };
+
+// snap lists them in this order, from INDEX 6 on
+const int TRACKS[TRACK_COUNT] = {
+	1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008,	// circuit
+	1102, 1103, 1104, 1105, 1106, 1107, 1108, 1109,	// sprint
+	1201, 1202, 1206, 1207, 1210, 1214,			// drag
+	1301, 1302, 1303, 1304, 1305, 1306, 1307, 1308	// drift: more points is better
+};
+
+static bool KnownTrack( int track ) {
+	for (int i = 0; i < TRACK_COUNT; i++)
+		if (TRACKS[i] == track) return true;
+	return false;
+}
+
+// a statement with text, then int parameters; returns the step result, *out
+// keeps the statement for reading rows
+static int RunInts( sqlite3_stmt ** out, const char * sql, const char * text, const int * ints, int n ) {
+	sqlite3_stmt * st;
+	if (sqlite3_prepare_v2 (db, sql, -1, &st, NULL) != SQLITE_OK) {
+		DbError (sql);
+		return SQLITE_ERROR;
+	}
+	int p = 1;
+	if (text) sqlite3_bind_text (st, p++, text, -1, SQLITE_TRANSIENT);
+	for (int i = 0; i < n; i++) sqlite3_bind_int (st, p++, ints[i]);
+	int rc = sqlite3_step (st);
+	if (rc != SQLITE_ROW && rc != SQLITE_DONE && rc != SQLITE_CONSTRAINT) DbError (sql);
+	if (out) *out = st;
+	else sqlite3_finalize (st);
+	return rc;
+}
+
+void DbBegin() {
+	Exec ("BEGIN");
+}
+
+void DbCommit() {
+	Exec ("COMMIT");
+}
+
+bool StatSave( const char * persona, const int v[35] ) {
+	for (int m = 0; m < 5; m++) {
+		sqlite3_stmt * st;
+		if (sqlite3_prepare_v2 (db, "INSERT OR REPLACE INTO stats (persona, mode, rating, wins, losses,"
+			" disconnects, rep, opp_rep, opp_rating) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", -1, &st, NULL) != SQLITE_OK) {
+			DbError ("stats");
+			return false;
+		}
+		sqlite3_bind_text (st, 1, persona, -1, SQLITE_TRANSIENT);
+		sqlite3_bind_text (st, 2, MODES[m], -1, SQLITE_STATIC);
+		for (int i = 0; i < 7; i++) sqlite3_bind_int (st, 3 + i, v[m * 7 + i]);
+		int rc = sqlite3_step (st);
+		sqlite3_finalize (st);
+		if (rc != SQLITE_DONE) {
+			if (rc != SQLITE_CONSTRAINT) DbError ("stats"); // a constraint: the persona is gone
+			return false;
+		}
+	}
+	return true;
+}
+
+bool StatLoadAll( void (*each)( const char * persona, const int v[35] ) ) {
+	sqlite3_stmt * st;
+	int rc = Run (&st, "SELECT persona, mode, rating, wins, losses, disconnects, rep, opp_rep, opp_rating"
+		" FROM stats ORDER BY persona");
+	char persona[100] = { 0 };
+	int v[35] = { 0 };
+	for (; rc == SQLITE_ROW; rc = sqlite3_step (st)) {
+		const char * p = (const char *)sqlite3_column_text (st, 0);
+		if (persona[0] != 0 && strcmp (persona, p) != 0) {
+			each (persona, v);
+			memset (v, 0, sizeof (v));
+		}
+		snprintf (persona, sizeof (persona), "%s", p);
+		const char * mode = (const char *)sqlite3_column_text (st, 1);
+		for (int m = 0; m < 5; m++)
+			if (strcmp (mode, MODES[m]) == 0)
+				for (int i = 0; i < 7; i++) v[m * 7 + i] = sqlite3_column_int (st, 2 + i);
+	}
+	if (persona[0] != 0) each (persona, v);
+	sqlite3_finalize (st);
+	return rc == SQLITE_DONE;
+}
+
+bool TrackRecordSave( int track, const char * persona, int score, int car, int dir ) {
+	if (!KnownTrack (track) || score <= 0) return false;
+	// replace the persona's record only by a better one
+	const char * sql = track >= 1301
+		? "INSERT INTO track_records (persona, track, score, car, dir) VALUES (?, ?, ?, ?, ?)"
+		  " ON CONFLICT (track, persona) DO UPDATE SET score = excluded.score, car = excluded.car,"
+		  " dir = excluded.dir WHERE excluded.score > track_records.score"
+		: "INSERT INTO track_records (persona, track, score, car, dir) VALUES (?, ?, ?, ?, ?)"
+		  " ON CONFLICT (track, persona) DO UPDATE SET score = excluded.score, car = excluded.car,"
+		  " dir = excluded.dir WHERE excluded.score < track_records.score";
+	int ints[4] = { track, score, car, dir };
+	return RunInts (NULL, sql, persona, ints, 4) == SQLITE_DONE;
+}
+
+int TrackRecordsTop( int track, TrackRecord * out, int max ) {
+	sqlite3_stmt * st;
+	int ints[2] = { track, max };
+	int rc = RunInts (&st, track >= 1301
+		? "SELECT persona, score, car, dir FROM track_records WHERE track = ? ORDER BY score DESC, rowid LIMIT ?"
+		: "SELECT persona, score, car, dir FROM track_records WHERE track = ? ORDER BY score ASC, rowid LIMIT ?",
+		NULL, ints, 2);
+	int n = 0;
+	for (; rc == SQLITE_ROW && n < max; rc = sqlite3_step (st), n++) {
+		snprintf (out[n].persona, sizeof (out[n].persona), "%s", (const char *)sqlite3_column_text (st, 0));
+		out[n].score = sqlite3_column_int (st, 1);
+		out[n].car = sqlite3_column_int (st, 2);
+		out[n].dir = sqlite3_column_int (st, 3);
+	}
+	sqlite3_finalize (st);
+	return n;
+}
+
+// stat.dat: PlayerStat records, Name[16] and 35 ints; s<track>.dat: Name[16],
+// score, car, dir. Records of personas that no longer exist are dropped.
+static void ImportStats() {
+	char log[256], r[16 + 35 * 4];
+	int personas = 0, records = 0;
+	FILE * f = fopen ("stat.dat", "rb");
+	if (f != NULL) {
+		while (fread (r, 1, sizeof (r), f) == sizeof (r)) {
+			char name[17] = { 0 };
+			int v[35];
+			memcpy (name, r, 16);
+			memcpy (v, r + 16, sizeof (v));
+			if (name[0] != 0 && StatSave (name, v)) personas++;
+		}
+		fclose (f);
+	}
+	for (int t = 0; t < TRACK_COUNT; t++) {
+		char file[16];
+		snprintf (file, sizeof (file), "s%d.dat", TRACKS[t]);
+		f = fopen (file, "rb");
+		if (f == NULL) continue;
+		while (fread (r, 1, 28, f) == 28) {
+			char name[17] = { 0 };
+			int v[3];
+			memcpy (name, r, 16);
+			memcpy (v, r + 16, sizeof (v));
+			if (name[0] != 0 && TrackRecordSave (TRACKS[t], name, v[0], v[1], v[2])) records++;
+		}
+		fclose (f);
+	}
+	snprintf (log, sizeof (log), "Imported stats of %d personas and %d track records\n", personas, records);
+	Log (log);
 }

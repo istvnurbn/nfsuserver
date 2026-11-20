@@ -1,8 +1,8 @@
 #ifndef ACCOUNTS_H
 #define ACCOUNTS_H
 
-// Accounts and personas live in an SQLite database (nfsu.db in the working
-// directory). Name rules follow the game's own messages: account names 4-16,
+// Accounts, personas, stats and track records live in an SQLite database
+// (nfsu.db in the working directory). Name rules follow the game's own messages: account names 4-16,
 // personas 3-12, passwords 4-16 characters.
 
 enum { ACC_OK, ACC_NOUSER, ACC_WRONG, ACC_BADPASS, ACC_BANNED, ACC_LOCKED, ACC_THROTTLED, ACC_DUPL, ACC_MAXP, ACC_ERROR };
@@ -22,5 +22,20 @@ int AccountCreate( const char * name, const char * pass );
 int PersonaCreate( const char * account, const char * persona );
 bool PersonaDelete( const char * account, const char * persona );
 bool LoadPersonas( const char * account, char personas[4][100] );
+
+// Stats and track records. A race report is saved between DbBegin and DbCommit.
+void DbBegin();
+void DbCommit();
+
+// v: the 35 numbers of a PlayerStat, 7 per mode (all, circuit, sprint, drag, drift)
+bool StatSave( const char * persona, const int v[35] );
+bool StatLoadAll( void (*each)( const char * persona, const int v[35] ) );
+
+#define TRACK_COUNT 30
+extern const int TRACKS[TRACK_COUNT];
+struct TrackRecord { char persona[16]; int score, car, dir; };
+// keeps the persona's best lap (ms) or, on tracks 1301-1308, most drift points
+bool TrackRecordSave( int track, const char * persona, int score, int car, int dir );
+int TrackRecordsTop( int track, TrackRecord * out, int max );
 
 #endif

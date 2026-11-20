@@ -88,46 +88,6 @@ struct PlayerStat {
 	}
 };
 
-struct StarsLap {
-	char Name[16];
-	int Time;
-	int Car;
-	int Dir;
-
-	StarsLap(void) {}
-
-	StarsLap(const char* fName, const int fTime, const int fCar, const int fDir) {
-		strcpy(Name, fName);
-		Time = fTime;
-		Car = fCar;
-		Dir = fDir;
-	}
-
-	bool operator == (const char* hStr) const {
-		return (!strcmp(Name, hStr));
-	}
-};
-
-struct StarsDrift {
-	char Name[16];
-	int Points;
-	int Car;
-	int Dir;
-
-	StarsDrift(void) {}
-
-	StarsDrift(const char* fName, const int fPoints, const int fCar, const int fDir) {
-		strcpy(Name, fName);
-		Points = fPoints;
-		Car = fCar;
-		Dir = fDir;
-	}
-
-	bool operator == (const char* hStr) const {
-		return (!strcmp(Name, hStr));
-	}
-};
-
 
 class RoomClass;
 class GameClass;
@@ -268,11 +228,7 @@ public:
 	void SendRoomsToUser(UserClass* user, char* buffer);
 	ServerClass();
 	void LoadStat();
-	void SaveStat();
-	void LoadStars(int track);
-	void SaveStars(int track);
-	void LoadStarsDrift(int track);
-	void SaveStarsDrift(int track);
+	void SaveStat(const char* persona);
 };
 
 bool RecvCommand(SOCKET sock, char* buffer);

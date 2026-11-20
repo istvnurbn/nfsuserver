@@ -71,37 +71,6 @@ std::vector<PlayerStat> PS;
 
 char tmpPlayerStat[1000];
 
-std::vector<StarsLap> S1001;
-std::vector<StarsLap> S1002;
-std::vector<StarsLap> S1003;
-std::vector<StarsLap> S1004;
-std::vector<StarsLap> S1005;
-std::vector<StarsLap> S1006;
-std::vector<StarsLap> S1007;
-std::vector<StarsLap> S1008;
-std::vector<StarsLap> S1102;
-std::vector<StarsLap> S1103;
-std::vector<StarsLap> S1104;
-std::vector<StarsLap> S1105;
-std::vector<StarsLap> S1106;
-std::vector<StarsLap> S1107;
-std::vector<StarsLap> S1108;
-std::vector<StarsLap> S1109;
-std::vector<StarsLap> S1201;
-std::vector<StarsLap> S1202;
-std::vector<StarsLap> S1206;
-std::vector<StarsLap> S1207;
-std::vector<StarsLap> S1210;
-std::vector<StarsLap> S1214;
-std::vector<StarsDrift> S1301;
-std::vector<StarsDrift> S1302;
-std::vector<StarsDrift> S1303;
-std::vector<StarsDrift> S1304;
-std::vector<StarsDrift> S1305;
-std::vector<StarsDrift> S1306;
-std::vector<StarsDrift> S1307;
-std::vector<StarsDrift> S1308;
-
 bool sort_REP_All(PlayerStat a, PlayerStat b) {
 	return a.REP_All > b.REP_All;
 };
@@ -120,14 +89,6 @@ bool sort_REP_Drag(PlayerStat a, PlayerStat b) {
 
 bool sort_REP_Drift(PlayerStat a, PlayerStat b) {
 	return a.REP_Drift > b.REP_Drift;
-};
-
-bool sort_Time(StarsLap a, StarsLap b) {
-	return a.Time < b.Time;
-};
-
-bool sort_Points(StarsDrift a, StarsDrift b) {
-	return a.Points > b.Points;
 };
 
 
@@ -221,7 +182,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 	std::vector<PlayerStat>::iterator tps;
 	int opps_rep, opps_rating, win_rep, lost_rep;
 	int tmp_rep = 0, tmp_rating = 0;
-	int save_stat_signal = 0;
 
 	switch (count) {
 	case 2:
@@ -238,7 +198,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				switch (place) {
 				case 1:
 					// 2 players circuit 2 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.3 * 0.1) + 0.5);
@@ -320,14 +279,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 3:					// 2 players circuit 3 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 3 laps reporter 1st place
-					// set save stat.dat
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.4 * 0.1) + 0.5);
@@ -405,13 +361,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 4:				// 2 players circuit 4 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 4 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.5 * 0.1) + 0.5);
@@ -487,13 +441,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 5:					// 2 players circuit 5 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 5 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 2 * 0.1) + 0.5);
@@ -572,13 +524,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 6:					// 2 players circuit 6 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 6 laps reporter 1st place
-					save_stat_signal = 1;
 
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
@@ -658,13 +608,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 7:					// 2 players circuit 7 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 7 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 3 * 0.1) + 0.5);
@@ -744,14 +692,12 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 
 				break;
 			case 8:					// 2 players circuit 8 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 8 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 3.5 * 0.1) + 0.5);
@@ -828,13 +774,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 9:					// 2 players circuit 9 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 9 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 4 * 0.1) + 0.5);
@@ -913,13 +857,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 10:				// 2 players circuit 10 laps
 				switch (place) {
 				case 1:
 					// 2 players circuit 10 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 4.5 * 0.1) + 0.5);
@@ -996,7 +938,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			}
 			break;
@@ -1010,7 +951,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			switch (place) {
 			case 1:
 				// 2 players sprint reporter 1st place
-				save_stat_signal = 1;
 				if (opps_rep < 100000) {
 					if (track == 1102) {
 						win_rep = floor((opps_rep * 0.1) + 0.5);
@@ -1086,7 +1026,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 			tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 			tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-			if (save_stat_signal) Server.SaveStat();
 			break;
 		case 2:						// 2 players drag
 			if (opp1 != NULL) {
@@ -1097,7 +1036,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			switch (place) {
 			case 1:
 				// 2 players drag reporter 1st place
-				save_stat_signal = 1;
 				if (opps_rep < 100000) {
 					win_rep = floor((opps_rep * 0.1) + 0.5);
 				}
@@ -1146,7 +1084,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 			tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 			tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-			if (save_stat_signal) Server.SaveStat();
 			break;
 		case 3:						// 2 players drift
 			if (opp1 != NULL) {
@@ -1159,7 +1096,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				switch (place) {
 				case 1:
 					// 2 players drift 2 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 0.1) + 0.5);
@@ -1248,13 +1184,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 3:					// 2 players drift 3 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 3 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.1 * 0.1) + 0.5);
@@ -1341,13 +1275,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 4:					// 2 players drift 4 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 4 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.2 * 0.1) + 0.5);
@@ -1434,13 +1366,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 5:					// 2 players drift 5 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 5 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.7 * 0.1) + 0.5);
@@ -1527,13 +1457,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 6:					// 2 players drift 6 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 6 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 2.2 * 0.1) + 0.5);
@@ -1591,7 +1519,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 					break;
 				case 2:
 					// 2 players drift 6 laps reporter 2nd place
-					save_stat_signal = 0;
 					tps = std::find(PS.begin(), PS.end(), reporter);
 					if (tps->REP_Drift < 200000) {
 						lost_rep = floor((tps->REP_Drift * 0.1) + 0.5);
@@ -1621,13 +1548,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 7:					// 2 players drift 7 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 7 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 2.7 * 0.1) + 0.5);
@@ -1714,13 +1639,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 8:					// 2 players drift 8 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 8 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 3.2 * 0.1) + 0.5);
@@ -1807,13 +1730,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 9:					// 2 players drift 9 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 9 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 3.7 * 0.1) + 0.5);
@@ -1900,14 +1821,12 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 
 				break;
 			case 10:				// 2 players drift 10 laps
 				switch (place) {
 				case 1:
 					// 2 players drift 10 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 4.2 * 0.1) + 0.5);
@@ -1994,7 +1913,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			}
 			break;
@@ -2019,7 +1937,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				switch (place) {
 				case 1:
 					// 3 players circuit 2 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.3 * 0.1) + 0.5);
@@ -2111,14 +2028,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 2) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 2) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 3:					// 3 players circuit 3 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 3 laps reporter 1st place
-					// set save stat.dat
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.4 * 0.1) + 0.5);
@@ -2205,13 +2119,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 4:				// 3 players circuit 4 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 4 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.5 * 0.1) + 0.5);
@@ -2296,13 +2208,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 5:					// 3 players circuit 5 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 5 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 2 * 0.1) + 0.5);
@@ -2388,13 +2298,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 6:					// 3 players circuit 6 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 6 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 2.5 * 0.1) + 0.5);
@@ -2479,13 +2387,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 7:					// 3 players circuit 7 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 7 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 3 * 0.1) + 0.5);
@@ -2570,13 +2476,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 8:					// 3 players circuit 8 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 8 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 3.5 * 0.1) + 0.5);
@@ -2662,13 +2566,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 9:					// 3 players circuit 9 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 9 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 4 * 0.1) + 0.5);
@@ -2755,13 +2657,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 10:				// 3 players circuit 10 laps
 				switch (place) {
 				case 1:
 					// 3 players circuit 10 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 4.5 * 0.1) + 0.5);
@@ -2846,7 +2746,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			}
 			break;
@@ -2864,7 +2763,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			switch (place) {
 			case 1:
 				// 3 players sprint reporter 1st place
-				save_stat_signal = 1;
 				if (opps_rep < 100000) {
 					if (track == 1102) {
 						win_rep = floor((opps_rep * 0.1) + 0.5);
@@ -2949,7 +2847,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 			tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 			tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-			if (save_stat_signal) Server.SaveStat();
 			break;
 		case 2:						// 3 players drag
 			if (opp1 != NULL) {
@@ -2965,7 +2862,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			switch (place) {
 			case 1:
 				// 3 players drag reporter 1st place
-				save_stat_signal = 1;
 				if (opps_rep < 100000) {
 					win_rep = floor((opps_rep * 0.1) + 0.5);
 				}
@@ -3021,7 +2917,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 			tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 			tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-			if (save_stat_signal) Server.SaveStat();
 			break;
 		case 3:						// 3 players drift
 			if (opp1 != NULL) {
@@ -3039,7 +2934,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				switch (place) {
 				case 1:
 					// 2 players drift 2 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 0.1) + 0.5);
@@ -3136,13 +3030,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 3:					// 3 players drift 3 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 3 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.1 * 0.1) + 0.5);
@@ -3237,13 +3129,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 4:					// 3 players drift 4 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 4 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.2 * 0.1) + 0.5);
@@ -3338,13 +3228,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 5:					// 3 players drift 5 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 5 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.7 * 0.1) + 0.5);
@@ -3439,13 +3327,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 6:					// 3 players drift 6 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 6 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 2.2 * 0.1) + 0.5);
@@ -3540,13 +3426,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 7:					// 3 players drift 7 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 7 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 2.7 * 0.1) + 0.5);
@@ -3641,13 +3525,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 8:					// 3 players drift 8 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 8 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 3.2 * 0.1) + 0.5);
@@ -3742,13 +3624,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 9:					// 3 players drift 9 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 9 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 3.7 * 0.1) + 0.5);
@@ -3843,13 +3723,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 10:				// 3 players drift 10 laps
 				switch (place) {
 				case 1:
 					// 3 players drift 10 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 4.2 * 0.1) + 0.5);
@@ -3944,7 +3822,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 2) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			}
 			break;
@@ -3974,7 +3851,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				switch (place) {
 				case 1:
 					// 4 players circuit 2 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.3 * 0.1) + 0.5);
@@ -4089,14 +3965,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 2) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 2) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 3:					// 4 players circuit 3 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 3 laps reporter 1st place
-					// set save stat.dat
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.4 * 0.1) + 0.5);
@@ -4205,13 +4078,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 4:				// 4 players circuit 4 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 4 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 1.5 * 0.1) + 0.5);
@@ -4317,13 +4188,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 5:					// 4 players circuit 5 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 5 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 2 * 0.1) + 0.5);
@@ -4431,13 +4300,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 6:					// 4 players circuit 6 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 6 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 2.5 * 0.1) + 0.5);
@@ -4539,13 +4406,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 7:					// 4 players circuit 7 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 7 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 3 * 0.1) + 0.5);
@@ -4651,13 +4516,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 8:					// 4 players circuit 8 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 8 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 3.5 * 0.1) + 0.5);
@@ -4764,13 +4627,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 9:					// 4 players circuit 9 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 9 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 4 * 0.1) + 0.5);
@@ -4877,13 +4738,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 10:				// 4 players circuit 10 laps
 				switch (place) {
 				case 1:
 					// 4 players circuit 10 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if ((track == 1001) || (track == 1002)) {
 							win_rep = floor((opps_rep * 4.5 * 0.1) + 0.5);
@@ -4988,7 +4847,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			}
 			break;
@@ -5011,7 +4869,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			switch (place) {
 			case 1:
 				// 4 players sprint reporter 1st place
-				save_stat_signal = 1;
 				if (opps_rep < 100000) {
 					if (track == 1102) {
 						win_rep = floor((opps_rep * 0.1) + 0.5);
@@ -5118,7 +4975,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 			tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 			tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-			if (save_stat_signal) Server.SaveStat();
 			break;
 		case 2:						// 4 players drag
 			if (opp1 != NULL) {
@@ -5139,7 +4995,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			switch (place) {
 			case 1:
 				// 4 players drag reporter 1st place
-				save_stat_signal = 1;
 				if (opps_rep < 100000) {
 					win_rep = floor((opps_rep * 0.1) + 0.5);
 				}
@@ -5215,7 +5070,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 			tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 			tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 			tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-			if (save_stat_signal) Server.SaveStat();
 			break;
 		case 3:						// 4 players drift
 			if (opp1 != NULL) {
@@ -5238,7 +5092,6 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				switch (place) {
 				case 1:
 					// 4 players drift 2 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 0.1) + 0.5);
@@ -5355,13 +5208,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
 
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 3:					// 4 players drift 3 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 3 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.1 * 0.1) + 0.5);
@@ -5476,13 +5327,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 4:					// 4 players drift 4 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 4 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.2 * 0.1) + 0.5);
@@ -5597,13 +5446,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 5:					// 4 players drift 5 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 5 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 1.7 * 0.1) + 0.5);
@@ -5718,13 +5565,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 6:					// 4 players drift 6 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 6 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 2.2 * 0.1) + 0.5);
@@ -5839,13 +5684,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 7:					// 4 players drift 7 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 7 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 2.7 * 0.1) + 0.5);
@@ -5960,13 +5803,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 8:					// 4 players drift 8 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 8 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 3.2 * 0.1) + 0.5);
@@ -6081,13 +5922,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 9:					// 4 players drift 9 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 9 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 3.7 * 0.1) + 0.5);
@@ -6202,13 +6041,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			case 10:				// 4 players drift 10 laps
 				switch (place) {
 				case 1:
 					// 4 players drift 10 laps reporter 1st place
-					save_stat_signal = 1;
 					if (opps_rep < 100000) {
 						if (track == 1301) {
 							win_rep = floor((opps_rep * 4.2 * 0.1) + 0.5);
@@ -6323,869 +6160,11 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 				tps->Rating_All = std::distance(PS.begin(), tps) + 1;
 				tps->OppsREP_All = (tps->OppsREP_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rep / 3) / (tps->Wins_All + tps->Loses_All);
 				tps->OppsRating_All = (tps->OppsRating_All * (tps->Wins_All + tps->Loses_All - 1) + opps_rating) / (tps->Wins_All + tps->Loses_All);
-				if (save_stat_signal) Server.SaveStat();
 				break;
 			}
 			break;
 		}
 		break;
-	}
-};
-
-void UpdateBestTimes(const int track, const int dir, const char* name0, const int car, const int best_lap, const int best_drift) {
-
-	std::vector<StarsLap>::iterator it;
-	std::vector<StarsDrift>::iterator it2;
-	int l = 1;
-
-	switch (track) {
-	case 1001:
-		if (S1001.empty()) {
-			S1001.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1001.begin(), S1001.end(), sort_Time);
-
-			it = std::find(S1001.begin(), S1001.end(), name0);
-			if (it != S1001.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1001.begin(); it != S1001.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1001.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-
-		break;
-	case 1002:
-		if (S1002.empty()) {
-			S1002.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1002.begin(), S1002.end(), sort_Time);
-
-			it = std::find(S1002.begin(), S1002.end(), name0);
-			if (it != S1002.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1002.begin(); it != S1002.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1002.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1003:
-		if (S1003.empty()) {
-			S1003.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			it = std::find(S1003.begin(), S1003.end(), name0);
-			if (it != S1003.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				std::sort(S1003.begin(), S1003.end(), sort_Time);
-				for (it = S1003.begin(); it != S1003.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1003.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1004:
-		if (S1004.empty()) {
-			S1004.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1004.begin(), S1004.end(), sort_Time);
-
-			it = std::find(S1004.begin(), S1004.end(), name0);
-			if (it != S1004.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1004.begin(); it != S1004.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1004.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1005:
-		if (S1005.empty()) {
-			S1005.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1005.begin(), S1005.end(), sort_Time);
-
-			it = std::find(S1005.begin(), S1005.end(), name0);
-			if (it != S1005.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1005.begin(); it != S1005.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1005.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1006:
-		if (S1006.empty()) {
-			S1006.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1006.begin(), S1006.end(), sort_Time);
-
-			it = std::find(S1006.begin(), S1006.end(), name0);
-			if (it != S1006.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1006.begin(); it != S1006.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1006.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1007:
-		if (S1007.empty()) {
-			S1007.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1007.begin(), S1007.end(), sort_Time);
-
-			it = std::find(S1007.begin(), S1007.end(), name0);
-			if (it != S1007.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1007.begin(); it != S1007.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1007.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1008:
-		if (S1008.empty()) {
-			S1008.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1008.begin(), S1008.end(), sort_Time);
-
-			it = std::find(S1008.begin(), S1008.end(), name0);
-			if (it != S1008.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1008.begin(); it != S1008.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1008.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1102:
-		if (S1102.empty()) {
-			S1102.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1102.begin(), S1102.end(), sort_Time);
-
-			it = std::find(S1102.begin(), S1102.end(), name0);
-			if (it != S1102.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1102.begin(); it != S1102.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1102.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1103:
-		if (S1103.empty()) {
-			S1103.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1103.begin(), S1103.end(), sort_Time);
-
-			it = std::find(S1103.begin(), S1103.end(), name0);
-			if (it != S1103.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1103.begin(); it != S1103.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1103.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1104:
-		if (S1104.empty()) {
-			S1104.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1104.begin(), S1104.end(), sort_Time);
-
-			it = std::find(S1104.begin(), S1104.end(), name0);
-			if (it != S1104.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1104.begin(); it != S1104.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1104.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1105:
-		if (S1105.empty()) {
-			S1105.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1105.begin(), S1105.end(), sort_Time);
-
-			it = std::find(S1105.begin(), S1105.end(), name0);
-			if (it != S1105.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1105.begin(); it != S1105.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1105.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1106:
-		if (S1106.empty()) {
-			S1106.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1106.begin(), S1106.end(), sort_Time);
-
-			it = std::find(S1106.begin(), S1106.end(), name0);
-			if (it != S1106.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1106.begin(); it != S1106.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1106.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1107:
-		if (S1107.empty()) {
-			S1107.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1107.begin(), S1107.end(), sort_Time);
-
-			it = std::find(S1107.begin(), S1107.end(), name0);
-			if (it != S1107.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1107.begin(); it != S1107.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1107.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1108:
-		if (S1108.empty()) {
-			S1108.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1108.begin(), S1108.end(), sort_Time);
-
-			it = std::find(S1108.begin(), S1108.end(), name0);
-			if (it != S1108.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1108.begin(); it != S1108.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1108.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1109:
-		if (S1109.empty()) {
-			S1109.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1109.begin(), S1109.end(), sort_Time);
-
-			it = std::find(S1109.begin(), S1109.end(), name0);
-			if (it != S1109.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1109.begin(); it != S1109.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1109.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1201:
-		if (S1201.empty()) {
-			S1201.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1201.begin(), S1201.end(), sort_Time);
-
-			it = std::find(S1201.begin(), S1201.end(), name0);
-			if (it != S1201.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1201.begin(); it != S1201.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1201.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1202:
-		if (S1202.empty()) {
-			S1202.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1202.begin(), S1202.end(), sort_Time);
-
-			it = std::find(S1202.begin(), S1202.end(), name0);
-			if (it != S1202.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1202.begin(); it != S1202.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1202.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1206:
-		if (S1206.empty()) {
-			S1206.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1206.begin(), S1206.end(), sort_Time);
-
-			it = std::find(S1206.begin(), S1206.end(), name0);
-			if (it != S1206.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1206.begin(); it != S1206.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1206.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1207:
-		if (S1207.empty()) {
-			S1207.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1207.begin(), S1207.end(), sort_Time);
-
-			it = std::find(S1207.begin(), S1207.end(), name0);
-			if (it != S1207.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1207.begin(); it != S1207.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1207.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1210:
-		if (S1210.empty()) {
-			S1210.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1210.begin(), S1210.end(), sort_Time);
-
-			it = std::find(S1210.begin(), S1210.end(), name0);
-			if (it != S1210.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1210.begin(); it != S1210.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1210.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1214:
-		if (S1214.empty()) {
-			S1214.push_back(StarsLap(name0, best_lap, car, dir));
-		}
-		else {
-			std::sort(S1214.begin(), S1214.end(), sort_Time);
-
-			it = std::find(S1214.begin(), S1214.end(), name0);
-			if (it != S1214.end()) {
-				// if name0 is already in the vector
-				if (it->Time > best_lap) {
-					it->Time = best_lap;
-					it->Car = car;
-					it->Dir = dir;
-				}
-			}
-			else {
-				for (it = S1214.begin(); it != S1214.end(); it++) {
-					if ((it->Time > best_lap) || (l < 11)) {
-						S1214.push_back(StarsLap(name0, best_lap, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1301:
-		if (S1301.empty()) {
-			S1301.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1301.begin(), S1301.end(), sort_Points);
-
-			it2 = std::find(S1301.begin(), S1301.end(), name0);
-			if (it2 != S1301.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1301.begin(); it2 != S1301.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1301.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1302:
-		if (S1302.empty()) {
-			S1302.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1302.begin(), S1302.end(), sort_Points);
-
-			it2 = std::find(S1302.begin(), S1302.end(), name0);
-			if (it2 != S1302.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1302.begin(); it2 != S1302.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1302.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1303:
-		if (S1303.empty()) {
-			S1303.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1303.begin(), S1303.end(), sort_Points);
-
-			it2 = std::find(S1303.begin(), S1303.end(), name0);
-			if (it2 != S1303.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1303.begin(); it2 != S1303.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1303.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1304:
-		if (S1304.empty()) {
-			S1304.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1304.begin(), S1304.end(), sort_Points);
-
-			it2 = std::find(S1304.begin(), S1304.end(), name0);
-			if (it2 != S1304.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1304.begin(); it2 != S1304.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1304.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1305:
-		if (S1305.empty()) {
-			S1305.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1305.begin(), S1305.end(), sort_Points);
-
-			it2 = std::find(S1305.begin(), S1305.end(), name0);
-			if (it2 != S1305.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1305.begin(); it2 != S1305.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1305.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1306:
-		if (S1306.empty()) {
-			S1306.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1306.begin(), S1306.end(), sort_Points);
-
-			it2 = std::find(S1306.begin(), S1306.end(), name0);
-			if (it2 != S1306.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1306.begin(); it2 != S1306.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1306.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1307:
-		if (S1307.empty()) {
-			S1307.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1307.begin(), S1307.end(), sort_Points);
-
-			it2 = std::find(S1307.begin(), S1307.end(), name0);
-			if (it2 != S1307.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1307.begin(); it2 != S1307.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1307.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-	case 1308:
-		if (S1308.empty()) {
-			S1308.push_back(StarsDrift(name0, best_drift, car, dir));
-		}
-		else {
-			std::sort(S1308.begin(), S1308.end(), sort_Points);
-
-			it2 = std::find(S1308.begin(), S1308.end(), name0);
-			if (it2 != S1308.end()) {
-				// if name0 is already in the vector
-				if (it2->Points < best_drift) {
-					it2->Points = best_drift;
-					it2->Car = car;
-					it2->Dir = dir;
-				}
-			}
-			else {
-				for (it2 = S1308.begin(); it2 != S1308.end(); it++) {
-					if ((it2->Points < best_drift) || (l < 11)) {
-						S1308.push_back(StarsDrift(name0, best_drift, car, dir));
-						break;
-					}
-					l++;
-					if (l > 10) break;
-				}
-			}
-		}
-		break;
-
-	}
-	if (track < 1301) {
-		Server.SaveStars(track);
-	}
-	else {
-		Server.SaveStarsDrift(track);
 	}
 };
 
@@ -7948,24 +6927,32 @@ threadfunc ListenerWorker(void *Dummy){
 							*/
 
 							if (RoomType < 69) {
+								const char* reporter = NULL;
+								DbBegin();
 								// calculate reporter statistic
 								switch (ReptNo) {
 								case 0:
-									CalcStat(name0, name1, name2, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
+									reporter = name0;
+									CalcStat(reporter, name1, name2, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								case 1:
-									CalcStat(name1, name0, name2, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
+									reporter = name1;
+									CalcStat(reporter, name0, name2, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								case 2:
-									CalcStat(name2, name0, name1, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
+									reporter = name2;
+									CalcStat(reporter, name0, name1, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								case 3:
-									CalcStat(name3, name0, name1, name2, PlayersCount, RaceType, Track, Laps, Place, Disc);
+									reporter = name3;
+									CalcStat(reporter, name0, name1, name2, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								}
-								// check/update stars of week Ranked rooms only
+								if (reporter != NULL) Server.SaveStat(reporter);
+								// best lap or drift score, ranked rooms only
 								if (FinishMark == 1)  // todo: need to improve this condition
-									UpdateBestTimes(Track, Dir, rept, Car, BestLap, BestDrift);
+									TrackRecordSave(Track, rept, Track >= 1301 ? BestDrift : BestLap, Car, Dir);
+								DbCommit();
 							}
 							
 							sprintf(arr2[0], "RANK=Unranked");
@@ -8306,15 +7293,12 @@ threadfunc ListenerWorker(void *Dummy){
 						}
 						LoadPersonas(user->Username, user->Personas);
 
-						// stats left behind by an earlier owner of the name
-						std::vector<PlayerStat>::iterator it = std::find(PS.begin(), PS.end(), field);
-						if (it != PS.end()) PS.erase(it);
 						PS.push_back(PlayerStat(field, 9999, 0, 0, 0, 100, 101, 101,
 							9999, 0, 0, 0, 100, 101, 101,
 							9999, 0, 0, 0, 100, 101, 101,
 							9999, 0, 0, 0, 100, 101, 101,
 							9999, 0, 0, 0, 100, 101, 101));
-						Server.SaveStat();
+						Server.SaveStat(field);
 
 						sprintf(arr2[0], "PERS=%s", field);
 						sprintf(arr2[1], "NAME=%s", user->Username);
@@ -8396,8 +7380,6 @@ S=1,wins_in_hex,loses_in_hex,
 
 							int ind = 1;
 							std::vector<PlayerStat>::iterator it;
-							std::vector<StarsLap>::iterator it2;
-							std::vector<StarsDrift>::iterator it3;
 
 							switch (index) {
 							case 1:
@@ -8460,334 +7442,16 @@ S=1,wins_in_hex,loses_in_hex,
 									if (ind > 100) break;
 								}
 								break;
-							case 6:
-								// circuit Market Street
-								std::sort(S1001.begin(), S1001.end(), sort_Time);
-								for (it2 = S1001.begin(); it2 != S1001.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 7:
-								// circuit Stadium
-								std::sort(S1002.begin(), S1002.end(), sort_Time);
-								for (it2 = S1002.begin(); it2 != S1002.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 8:
-								// circuit Olympic Square
-								std::sort(S1003.begin(), S1003.end(), sort_Time);
-								for (it2 = S1003.begin(); it2 != S1003.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 9:
-								// circuit Terminal
-								std::sort(S1004.begin(), S1004.end(), sort_Time);
-								for (it2 = S1004.begin(); it2 != S1004.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 10:
-								// circuit Atlantica
-								std::sort(S1005.begin(), S1005.end(), sort_Time);
-								for (it2 = S1005.begin(); it2 != S1005.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 11:
-								// circuit Inner City
-								std::sort(S1006.begin(), S1006.end(), sort_Time);
-								for (it2 = S1006.begin(); it2 != S1006.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 12:
-								// circuit Port Royal
-								std::sort(S1007.begin(), S1007.end(), sort_Time);
-								for (it2 = S1007.begin(); it2 != S1007.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 13:
-								// circuit National Rail
-								std::sort(S1008.begin(), S1008.end(), sort_Time);
-								for (it2 = S1008.begin(); it2 != S1008.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 14:
-								// sprint Liberty Gardens
-								std::sort(S1102.begin(), S1102.end(), sort_Time);
-								for (it2 = S1102.begin(); it2 != S1102.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 15:
-								// sprint Broadway
-								std::sort(S1103.begin(), S1103.end(), sort_Time);
-								for (it2 = S1103.begin(); it2 != S1103.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 16:
-								// sprint Lock Up
-								std::sort(S1104.begin(), S1104.end(), sort_Time);
-								for (it2 = S1104.begin(); it2 != S1104.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 17:
-								// sprint 9th & Frey
-								std::sort(S1105.begin(), S1105.end(), sort_Time);
-								for (it2 = S1105.begin(); it2 != S1105.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 18:
-								// sprint Bedard Bridge
-								std::sort(S1106.begin(), S1106.end(), sort_Time);
-								for (it2 = S1106.begin(); it2 != S1106.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 19:
-								// sprint Sprillway
-								std::sort(S1107.begin(), S1107.end(), sort_Time);
-								for (it2 = S1107.begin(); it2 != S1107.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 20:
-								// sprint 1st Ave. Truck Stop
-								std::sort(S1108.begin(), S1108.end(), sort_Time);
-								for (it2 = S1108.begin(); it2 != S1108.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 21:
-								// sprint 7th & Sparling
-								std::sort(S1109.begin(), S1109.end(), sort_Time);
-								for (it2 = S1109.begin(); it2 != S1109.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 22:
-								// drag 14th and Vine Construction
-								std::sort(S1201.begin(), S1201.end(), sort_Time);
-								for (it2 = S1201.begin(); it2 != S1201.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 23:
-								// drag Highway 1
-								std::sort(S1202.begin(), S1202.end(), sort_Time);
-								for (it2 = S1202.begin(); it2 != S1202.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 24:
-								// drag Main Street
-								std::sort(S1206.begin(), S1206.end(), sort_Time);
-								for (it2 = S1206.begin(); it2 != S1206.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 25:
-								// drag Commercial 
-								std::sort(S1207.begin(), S1207.end(), sort_Time);
-								for (it2 = S1207.begin(); it2 != S1207.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 26:
-								// drag 14th and Vine
-								std::sort(S1210.begin(), S1210.end(), sort_Time);
-								for (it2 = S1210.begin(); it2 != S1210.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 27:
-								// drag Main Street Construction
-								std::sort(S1214.begin(), S1214.end(), sort_Time);
-								for (it2 = S1214.begin(); it2 != S1214.end(); it2++) {
-									sprintf(arr2[0], "N=%s", it2->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it2->Time, it2->Dir, it2->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 28:								
-								std::sort(S1301.begin(), S1301.end(), sort_Points);
-								for (it3 = S1301.begin(); it3 != S1301.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-
-								break;
-							case 29:
-								// drift Track 2
-								std::sort(S1302.begin(), S1302.end(), sort_Points);
-								for (it3 = S1302.begin(); it3 != S1302.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 30:
-								// drift Track 3
-								std::sort(S1303.begin(), S1303.end(), sort_Points);
-								for (it3 = S1303.begin(); it3 != S1303.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 31:
-								// drift Track 4
-								std::sort(S1304.begin(), S1304.end(), sort_Points);
-								for (it3 = S1304.begin(); it3 != S1304.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 32:
-								// drift Track 5
-								std::sort(S1305.begin(), S1305.end(), sort_Points);
-								for (it3 = S1305.begin(); it3 != S1305.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 33:
-								// drift Track 6
-								std::sort(S1306.begin(), S1306.end(), sort_Points);
-								for (it3 = S1306.begin(); it3 != S1306.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 34:
-								// drift Track 7
-								std::sort(S1307.begin(), S1307.end(), sort_Points);
-								for (it3 = S1307.begin(); it3 != S1307.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
-								}
-								break;
-							case 35:
-								// drift Track 8
-								std::sort(S1308.begin(), S1308.end(), sort_Points);
-								for (it3 = S1308.begin(); it3 != S1308.end(); it3++) {
-									sprintf(arr2[0], "N=%s", it3->Name);
-									sprintf(arr2[1], "S=%x,%x,%x", it3->Points, it3->Dir, it3->Car);
-									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
-									ind++;
-									if (ind > 10) break;
+							default:
+								// INDEX 6 on: the best 10 on each track, in the order of TRACKS
+								if (index >= 6 && index < 6 + TRACK_COUNT) {
+									TrackRecord rec[10];
+									int n = TrackRecordsTop(TRACKS[index - 6], rec, 10);
+									for (int i = 0; i < n; i++) {
+										sprintf(arr2[0], "N=%s", rec[i].persona);
+										sprintf(arr2[1], "S=%x,%x,%x", rec[i].score, rec[i].dir, rec[i].car);
+										temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "+snp", arr, 2));
+									}
 								}
 								break;
 
@@ -8871,7 +7535,6 @@ S=1,wins_in_hex,loses_in_hex,
 
 						PersonaDelete(user->Username, field);
 						LoadPersonas(user->Username, user->Personas);
-						Server.SaveStat();
 						temp->OutgoingMessages.AddMessage(MakeMessage(buffer, "dper", NULL, 0));
 					}
 					break;
@@ -9476,6 +8139,7 @@ bool InitServer(){
 	strcpy(ReportingConnections.Name, "ReportingConnections");
 
 	if (!DbOpen("nfsu.db")) return false;
+	Server.LoadStat();
 
 	//starting threads
 	//static: the accept threads keep reading these after InitServer() has returned
