@@ -65,7 +65,10 @@ def new(server):
     # captured from the real game (PC 1.4): 16 times "a"
     captured = "~aj%22F*'h;h|.obU$~-Gn*w1sTSO[Jw<"
     expect(reply(p, "acct", f"NAME=captured\nPASS={captured}\n"), "acct", "sign up with a captured PASS")
-    expect(auth(p, "captured", "a" * 16), "auth", "it decodes to 16 times a")
+    c = connect(server)  # a connection logs in once
+    expect(auth(c, "captured", "a" * 16), "auth", "it decodes to 16 times a")
+    expect(auth(c, "captured", "a" * 16), "authlogn", "a second login on the same connection")
+    c.sock.close()
 
     expect(auth(p, "nobody", password), "authimst", "unknown account")
     expect(auth(p, name, "wrong123"), "authpass", "wrong password")

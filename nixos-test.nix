@@ -18,6 +18,8 @@ let
   accounts = "${pkgs.python3.interpreter} ${./tests}/accounts.py";
   # race results, stats and track records
   stats = "${pkgs.python3.interpreter} ${./tests}/stats.py";
+  # games dropped while others join them, the status port read meanwhile
+  stress = "${pkgs.python3.interpreter} ${./tests}/stress.py";
 in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
@@ -216,6 +218,13 @@ pkgs.testers.runNixOSTest {
 
     with subtest("a ranked race is saved: the win, the loss and the best laps"):
         server.succeed("${stats} 127.0.0.1 race")
+
+    with subtest("race reports that must not count are refused, a quit race does not decide the next"):
+        server.succeed("${stats} 127.0.0.1 cheats")
+
+    with subtest("players leaving games while others join them do not crash the server"):
+        server.succeed("${stress} 127.0.0.1 10 0.02")
+        assert server.succeed("systemctl show -p NRestarts --value nfsuserver.service").strip() == "0"
 
         assert server.succeed("systemctl show -p NRestarts --value nfsuserver.service").strip() == "0"
 

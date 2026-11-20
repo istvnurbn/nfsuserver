@@ -2,6 +2,7 @@
 """Check that race results end up in the stats and track records.
 
   stats.py SERVER race       two players race in a ranked room and report
+  stats.py SERVER cheats     reports that must not count, a quit race
   stats.py SERVER restarted  the results of "race" are still there; a persona
                              deleted takes its stats and records with it
   stats.py DIR files         write an old-style stat.dat and s1001.dat to DIR
@@ -61,15 +62,33 @@ def player(server, name):
     return p
 
 
+def start_race(host, guest, room, game):
+    """Both enter the room, the host creates a game for two and the guest
+    joins it, which starts the race."""
+    for p in (host, guest):
+        p.request("move", f"NAME={room}\n", "move")
+    host.request("gcre", f"NAME={game}\nROOM={room}\nMAXSIZE=2\nMINSIZE=2\nSYSFLAGS=0\nPARAMS=x", "gcre")
+    guest.request("gget", f"NAME={game}", "gget")
+    guest.request("gjoi", f"NAME={game}", "gjoi")
+    for p in (host, guest):
+        p.read(0.5)
+
+
+def leave(guest, host, game):
+    """Both leave the game; the last one out gets no glea back."""
+    guest.request("glea", f"NAME={game}", "glea")
+    host.send("glea", f"NAME={game}")
+    host.read(0.3)
+
+
+def report(p, rept, names, resu_value):
+    names = "".join(f"NAME{i}={n}\n" for i, n in enumerate(names))
+    p.request("rank", f"REPT={rept}\n{names}RESU={resu_value}\n", "rank")
+
+
 def race(server):
     w, l = player(server, WINNER), player(server, LOSER)
-    for p in (w, l):
-        p.request("move", "NAME=A.Global\n", "move")
-    w.request("gcre", "NAME=statsrace\nROOM=A.Global\nMAXSIZE=2\nMINSIZE=2\nSYSFLAGS=0\nPARAMS=x", "gcre")
-    l.request("gget", "NAME=statsrace", "gget")
-    l.request("gjoi", "NAME=statsrace", "gjoi")
-    for p in (w, l):
-        p.read(0.5)
+    start_race(w, l, "A.Global", "statsrace")
     places = [(1, LAP_MS[WINNER]), (2, LAP_MS[LOSER])]
     # the winner reports first: the old server saved the loss only on the next win
     for seed, p, persona in ((0, w, WINNER), (1, l, LOSER)):
@@ -83,8 +102,40 @@ def check(p):
     expect(circuit(p, WINNER)[1:5], [1, 0, 0, 113], "winner: wins, losses, disconnects, REP")
     expect(circuit(p, LOSER)[1:5], [0, 1, 0, 100], "loser: wins, losses, disconnects, REP")
     records = snap(p, 6)  # INDEX 6: the best laps on track 1001
-    expect(list(records)[:2], [WINNER, LOSER], "track 1001 record holders, best first")
+    expect([n for n in records if n in LAP_MS], [WINNER, LOSER], "track 1001: winner ahead of loser")
     expect(records[WINNER][0], LAP_MS[WINNER], "winner's best lap in ms")
+
+
+def cheats(server):
+    """Reports that must not count, then one that must."""
+    a, b = player(server, "racera"), player(server, "racerb")
+    places = [(1, 60000), (2, 61000)]
+    names = ["racera", "racerb"]
+    before, before_b = circuit(a, "racera"), circuit(a, "racerb")
+
+    report(a, "racera", names, resu(0, places))
+    expect(circuit(a, "racera"), before, "a win reported without a race")
+
+    start_race(a, b, "A.Global", "cheats1")
+    report(b, "racera", names, resu(0, places))
+    expect(circuit(a, "racera"), before, "a win reported for someone else")
+    report(a, "racera", names, resu(1, places))
+    expect(circuit(a, "racerb"), before_b, "a report whose seed is the other player")
+    huge = base64.b64encode(bytes([100, 0, 0, 3, 233, 0, 2]) + bytes(60)).decode()
+    report(a, "racera", names, huge)
+    expect(circuit(a, "racera"), before, "a report of 100 players")
+
+    # the ranked race above is quit without a report; the next one, in an
+    # unranked room, must not count
+    leave(b, a, "cheats1")
+    start_race(a, b, "E.Global", "cheats2")
+    report(a, "racera", names, resu(0, places))
+    expect(circuit(a, "racera"), before, "a win in an unranked room after a quit ranked race")
+
+    leave(b, a, "cheats2")
+    start_race(a, b, "A.Global", "cheats3")
+    report(a, "racera", names, resu(0, places))
+    expect(circuit(a, "racera")[1], before[1] + 1, "wins after a correct report")
 
 
 def restarted(server):
@@ -121,4 +172,4 @@ def imported(server):
 
 if __name__ == "__main__":
     target, step = sys.argv[1:3]
-    {"race": race, "restarted": restarted, "files": files, "imported": imported}[step](target)
+    {"race": race, "cheats": cheats, "restarted": restarted, "files": files, "imported": imported}[step](target)
