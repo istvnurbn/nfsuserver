@@ -272,7 +272,7 @@ in
       after = [ "network-online.target" ];
 
       # The server only knows relative paths. It reads nfsu.conf and news.txt
-      # from its working directory and keeps its databases (rusers.dat,
+      # from its working directory and keeps its databases (nfsu.db,
       # stat.dat, s*.dat) and optional log files there as well.
       preStart = ''
         ln -sfn ${configFile} nfsu.conf
