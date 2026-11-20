@@ -779,12 +779,18 @@ void GameClass::StartGame(char* buffer) {
 			* Need to save information about the player's name and room type in order to determine
 			* there was a rating race or not.
 			*/
-			session = (SessionClass*)calloc(1, sizeof(SessionClass));
-			strcpy(session->Persona, ru->User->Personas[ru->User->SelectedPerson]);
-			strcpy(session->FromRoom, Users.First->User->CurrentRoom->Name);
-			strcpy(session->IP, ru->User->IP);
+			// one session per persona: a race quit without a report must not decide the next one
+			const char* persona = ru->User->Personas[ru->User->SelectedPerson];
+			for (session = Sessions.First; session != NULL; session = session->Next)
+				if (stricmp(session->Persona, persona) == 0) break;
+			if (session == NULL) {
+				session = (SessionClass*)calloc(1, sizeof(SessionClass));
+				snprintf(session->Persona, sizeof(session->Persona), "%s", persona);
+				Sessions.AddSession(session);
+			}
+			snprintf(session->FromRoom, sizeof(session->FromRoom), "%s", Users.First->User->CurrentRoom->Name);
+			snprintf(session->IP, sizeof(session->IP), "%s", ru->User->IP);
 			session->Idle = 0;
-			Sessions.AddSession(session);
 			ru->User->Connection->OutgoingMessages.AddMessage(MakeMessage(buffer, "+ses", arr, 13 + l * 3));
 		}
 
