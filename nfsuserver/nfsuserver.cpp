@@ -448,20 +448,12 @@ void Subscribe(){
 	remote_sockaddr_in.sin_family = AF_INET;
 	remote_sockaddr_in.sin_port = htons(80);
 
-	if(hostInfo!=NULL){		
-#ifdef _WIN32
-		memcpy(&remote_sockaddr_in.sin_addr.S_un.S_addr, hostInfo->h_addr_list[0], hostInfo->h_length);
-#else
-		memcpy(&remote_sockaddr_in.sin_addr.s_addr, hostInfo->h_addr_list[0], hostInfo->h_length);
-#endif
-	}else{
-		//remote_sockaddr_in.sin_addr.s_addr = inet_addr("195.2.101.48");
-		if (remote_sockaddr_in.sin_addr.s_addr == INADDR_NONE) {
-			sprintf(log, "[warn] Could not connect to server list tracker %s.\n", trackeraddr);
-			Log(log);
-			return;
-		}
+	if (hostInfo == NULL || hostInfo->h_addrtype != AF_INET) {
+		sprintf(log, "[warn] Could not look up the server list tracker %s.\n", trackeraddr);
+		Log(log);
+		return;
 	}
+	memcpy(&remote_sockaddr_in.sin_addr.s_addr, hostInfo->h_addr_list[0], sizeof(remote_sockaddr_in.sin_addr.s_addr));
 
 	SOCKET sock=socket(AF_INET, SOCK_STREAM, 0);
 	if(sock==INVALID_SOCKET) return;
