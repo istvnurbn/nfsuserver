@@ -6592,6 +6592,11 @@ threadfunc ListenerWorker(void *Dummy){
 							GameClass* game = user->CurrentRoom->Games.GameFromName(field);
 							if (game != NULL) {
 								game->RemoveUser(user, buffer);
+								// the last one out: an empty game crashes the next gget
+								if (game->Count == 0) {
+									user->CurrentRoom->Games.RemoveGame(game);
+									free(game);
+								}
 							}
 						}
 						break;
