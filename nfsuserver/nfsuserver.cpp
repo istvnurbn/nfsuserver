@@ -119,8 +119,10 @@ char ascii[256] =
   64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64
 };
 
-void base64_out(char* buf, char* obuf, int len) {
+// returns how many bytes it decoded; it drops the last byte of the final group
+int base64_out(char* buf, char* obuf, int len) {
 	int nprbytes;
+	char* start = obuf;
 
 	nprbytes = len - 1;
 
@@ -138,6 +140,7 @@ void base64_out(char* buf, char* obuf, int len) {
 	if (nprbytes > 3)
 		*(obuf++) = (ascii[(unsigned char)buf[2]] << 6 | ascii[(unsigned char)buf[3]]);
 	*(obuf)++ = '\0';
+	return (int)(obuf - start) - 1;
 };
 
 bool IsCheater(const unsigned char wei, const unsigned char sus, const unsigned char eng, const unsigned char tur,
@@ -180,6 +183,10 @@ void CalcStat(const char* reporter, const char* opp1, const char* opp2, const ch
 	std::vector<PlayerStat>::iterator tps;
 	int opps_rep, opps_rating, win_rep, lost_rep;
 	int tmp_rep = 0, tmp_rating = 0;
+
+	// a place outside the race divides by zero below, a reporter without stats
+	// is written through PS.end()
+	if (place < 1 || place > count || std::find(PS.begin(), PS.end(), reporter) == PS.end()) return;
 
 	switch (count) {
 	case 2:
@@ -6865,7 +6872,7 @@ threadfunc ListenerWorker(void *Dummy){
 							if (!Field(buf + 12, "NAME2", n2, sizeof(n2))) name2 = NULL;
 							if (name2 == NULL || !Field(buf + 12, "NAME3", n3, sizeof(n3))) name3 = NULL;
 							// decode RESU (get dec_resu)
-							base64_out(resu, dec_resu, strlen(resu));
+							int ResuLen = base64_out(resu, dec_resu, strlen(resu));
 							//*
 							char PlayersCount, RaceType, ReptNo, Dir, Laps;
 							unsigned short Track;
@@ -6881,13 +6888,29 @@ threadfunc ListenerWorker(void *Dummy){
 								break;
 							}
 
-							char Place, FinishMark, SeedNo, Car;
-							int Disc;
+							char Place = 0, FinishMark = 0, SeedNo, Car = 0;
+							int Disc = 0;
 							float FF;
 							float* pFF;
-							int BestLap;
-							int BestDrift;
+							int BestLap = 0;
+							int BestDrift = 0;
 							int BlockSize = 58 + 8 * Laps;
+
+							// A report counts only from the player it is about, with a name for
+							// every player, and with each block inside what RESU decoded to (the
+							// last value read is 4 bytes before the end of the last block).
+							const char* names[4] = { name0, name1, name2, name3 };
+							const char* reporter = (ReptNo >= 0 && ReptNo < PlayersCount && ReptNo < 4) ? names[(int)ReptNo] : NULL;
+							bool valid = PlayersCount >= 2 && PlayersCount <= 4 && Laps >= 0
+								&& (PlayersCount < 3 || name2 != NULL) && (PlayersCount < 4 || name3 != NULL)
+								&& 7 + BlockSize * PlayersCount - 3 <= ResuLen
+								&& reporter != NULL && stricmp(reporter, rept) == 0
+								&& user->SelectedPerson >= 0 && stricmp(rept, user->Personas[user->SelectedPerson]) == 0;
+							if (!valid) {
+								sprintf(log, "[warn] Race report from %s not counted: REPT=%s\n", temp->IP, rept);
+								Log(log);
+								PlayersCount = 0; // reads no blocks below
+							}
 
 							// find the replica sender info (REPT)
 							int l = 0;
@@ -6916,9 +6939,9 @@ threadfunc ListenerWorker(void *Dummy){
 								l++;
 							}
 
-							SessionClass* session = Sessions.First;
+							SessionClass* session = valid ? Sessions.First : NULL;
 
-							char RoomType = 'A';
+							char RoomType = 'E'; // no race of this player started: unranked
 
 							while (session != NULL) {
 								if (stricmp(rept, session->Persona) == 0) {
@@ -6936,29 +6959,24 @@ threadfunc ListenerWorker(void *Dummy){
 							   The first letter is E, F, G, H or 69, 70, 71, 72 DEC for the unranked rooms.
 							*/
 
-							if (RoomType < 69) {
-								const char* reporter = NULL;
+							if (valid && RoomType < 69) {
 								DbBegin();
 								// calculate reporter statistic
 								switch (ReptNo) {
 								case 0:
-									reporter = name0;
 									CalcStat(reporter, name1, name2, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								case 1:
-									reporter = name1;
 									CalcStat(reporter, name0, name2, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								case 2:
-									reporter = name2;
 									CalcStat(reporter, name0, name1, name3, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								case 3:
-									reporter = name3;
 									CalcStat(reporter, name0, name1, name2, PlayersCount, RaceType, Track, Laps, Place, Disc);
 									break;
 								}
-								if (reporter != NULL) Server.SaveStat(reporter);
+								Server.SaveStat(reporter);
 								// best lap or drift score, ranked rooms only
 								if (FinishMark == 1)  // todo: need to improve this condition
 									TrackRecordSave(Track, rept, Track >= 1301 ? BestDrift : BestLap, Car, Dir);
