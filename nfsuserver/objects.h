@@ -44,12 +44,9 @@ class ConnectionsClass {
 		ConnectionClass * First;
 		ConnectionClass * Last;
 		unsigned int Count;
-		void Clear ();
-		ConnectionClass * RemoveFirstConnection ();
 		void RemoveConnection (ConnectionClass * con);
 		void AddConnection (ConnectionClass * con);
 		ConnectionsClass ();
-		~ConnectionsClass ();
 	Mutex mut;
 };
 

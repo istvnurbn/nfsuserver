@@ -120,7 +120,6 @@ public:
 	UserClass* First;
 	void AddUser(UserClass* user);
 	void RemoveUser(UserClass* user);
-	void Broadcast(char* buf, unsigned int len);
 	UserClass* UserFromUsername(char* username);
 	UsersClass();
 };
@@ -231,8 +230,6 @@ public:
 	void SaveStat(const char* persona);
 };
 
-bool RecvCommand(SOCKET sock, char* buffer);
-bool SendCommand(SOCKET sock, char* command, char* params[], int paramcount);
 int MakeCommand(char* buffer, char* command, char* params[], int paramcount);
 void BroadCastCommand(UsersClass* users, char* command, char* params[], int paramcount, char* buffer);
 void BroadCastCommand(RUsersClass& users, char* command, char* params[], int paramcount, char* buffer);
@@ -240,7 +237,5 @@ void BroadCastCommand(UsersClass* users, char* command, char* params[], int para
 void BroadCastCommand(RUsersClass& users, char* command, char* params[], int paramcount, char* buffer, UserClass* about, int addrparam);
 const char* AddrFor(UserClass* about, UserClass* to);
 const char* LobbyAddrFor(ConnectionClass* con);
-int recvn(SOCKET sock, char* buf, int required);
-int atoi2(char* str);
 char* GetPlayerStat(const char* Name);
 void GetOppREP_Rating(const char* name, const char race_type, int& rep, int& rating);

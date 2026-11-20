@@ -493,19 +493,6 @@ void GamesClass::RemoveGame(GameClass* game) {
 	game->Name[0] = 0;
 }
 
-void UsersClass::Broadcast(char* buf, unsigned int len) {
-	UserClass* tmp;
-	tmp = First;
-
-	while (tmp != NULL) {
-		MessageClass* msg = (MessageClass*)calloc(1, sizeof(MessageClass));
-		msg->Message = (char*)calloc(len, sizeof(char));
-		msg->Size = len;
-		tmp->Connection->OutgoingMessages.AddMessage(msg);
-		tmp = tmp->Next;
-	}
-};
-
 RoomClass* RoomsClass::RoomFromName(char* name) {
 	RoomClass* tmp;
 	tmp = First;
@@ -940,18 +927,6 @@ void RoomClass::ListToUser(UserClass* user, char* buffer) {
 	}
 };
 
-int atoi2(char* str) {
-	int ret = 0;
-	char* tmp;
-	tmp = str;
-
-	while ((tmp != NULL) && (tmp[0] >= '0') && (tmp[0] <= '9')) {
-		ret = ret * 10 + tmp[0] - '0';
-		tmp++;
-	}
-
-	return ret;
-};
 
 
 // PlayerStat holds its 35 numbers back to back after Name, in the order StatSave takes
