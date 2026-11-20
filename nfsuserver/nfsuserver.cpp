@@ -36,7 +36,6 @@ bool BanRoomsCreation;
 bool BanCheater;
 
 FILE * logfil = NULL;  //file pointer for logfile
-char logtemp[1100];    //temp variable for logging
 FILE * tlogfil = NULL; //file pointer for traffic logfile
 
 char * news = NULL;
@@ -146,14 +145,18 @@ bool IsCheater(const unsigned char wei, const unsigned char sus, const unsigned 
 
 
 void Log( char *log ){
+    // its own buffers: every thread logs
+    char logtemp[1100];
     if (!DisableTimeStamp){
         time_t t;
+        char when[32];
         time(& t);
-        sprintf(logtemp, "[ %s  %s", ctime(& t), log);
+        ctime_r(& t, when);
+        snprintf(logtemp, sizeof(logtemp), "[ %s  %s", when, log);
         logtemp[26] = 32;
         logtemp[27] = 93;
     }else{
-        strcpy(logtemp, log);
+        snprintf(logtemp, sizeof(logtemp), "%s", log);
     }
 
     if (EnableLogScreen)
