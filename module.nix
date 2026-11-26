@@ -23,7 +23,7 @@ let
     10900 # redirector: first contact of a game that is pointed straight at this server
     10901 # lobby: where a redirector (this one, or one in a launcher) sends the game
     10800 # server info: without it launchers show the server as offline, and the public list rejects it
-    10980 # statistics, read by the scripts in web/
+    10980 # status (rooms and players), read by launchers such as NFSUServerChanger
   ];
   udpPorts = [
     10800 # LAN discovery by launchers (answered to port 10801 of the sender)

@@ -102,7 +102,7 @@ The server requires the following ports to be forwarded:
 | 10901 TCP | Lobby: accounts, rooms, chat and matchmaking |
 | 10800 TCP | Server info for server lists |
 | 10800 UDP | Server discovery within a local network |
-| 10980 TCP | Statistics for the scripts in `web/` |
+| 10980 TCP | Status (rooms and players) for launchers such as NFSUServerChanger |
 
 Port 10990 TCP is the JSON API for the website (`apiip`, `127.0.0.1` by default). Don't forward it: a reverse proxy on the same host serves it with TLS.
 
@@ -155,12 +155,15 @@ security.acme = {
 
 ```sh
 echo DOMAIN=nfsu.example.com > .env
+# docker/nfsu.conf: set serverexternalip to the host's public IPv4 address (see below)
 mkpasswd -m yescrypt > docker/admin-password            # see "Admin login for the website" above
 head -c 20 /dev/urandom | base32 > docker/admin-totp
 sudo chown 10990 docker/admin-password docker/admin-totp   # the server's user in the container
 chmod 400 docker/admin-password docker/admin-totp
 docker compose up -d --build
 ```
+
+Set `serverexternalip` in `docker/nfsu.conf` before players connect. The game first asks the server where the lobby is, and without it the server answers with the address the connection arrived on, which in a container is the container's private address (`172.30.99.x`) that no player can reach.
 
 Edit `docker/nfsu.conf` and `docker/news.txt` for the server's settings and news, then `docker compose restart nfsuserver`. Accounts and stats live in the `data` volume. Point the domain's DNS at the host and keep ports 80 and 443 open for the certificate.
 
