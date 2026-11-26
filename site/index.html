@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NFSU lobby server</title>
+<link rel="stylesheet" href="style.css">
+<script src="names.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#status"><span class="mark">NFSU</span><span id="server-name">Lobby server</span></a>
+  <p id="online" class="online" aria-live="polite"></p>
+  <nav aria-label="Pages">
+    <a href="#status">Status</a>
+    <a href="#races">Races</a>
+    <a href="#leaderboard">Leaderboard</a>
+    <a href="#records">Records</a>
+    <a href="#connect">Connect</a>
+  </nav>
+</header>
+
+<p id="offline" class="banner" role="status" hidden>Can't reach the server right now. Retrying every 10 seconds.</p>
+
+<main>
+  <section id="view-status" class="view" hidden>
+    <h1>Status</h1>
+    <div id="stats" class="tiles"></div>
+    <h2>Ranked rooms</h2>
+    <div id="rooms-ranked" class="grid rooms"></div>
+    <h2>Unranked rooms</h2>
+    <div id="rooms-unranked" class="grid rooms"></div>
+  </section>
+
+  <section id="view-races" class="view" hidden>
+    <h1>Races</h1>
+    <p class="lead">Games in the lobby right now: waiting for players, or already on the track.</p>
+    <div id="races" class="grid"></div>
+  </section>
+
+  <section id="view-leaderboard" class="view" hidden>
+    <h1>Leaderboard</h1>
+    <p class="lead">The top 100 by REP, in the order the game's own rank list uses.</p>
+    <div class="tabs" role="group" aria-label="Mode" data-for="leaderboard"></div>
+    <div class="scroll"><table id="leaderboard">
+      <thead><tr><th scope="col">#</th><th scope="col">Persona</th><th scope="col" class="num">REP</th><th scope="col" class="num">Wins</th><th scope="col" class="num">Losses</th><th scope="col" class="num">Disconnects</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section id="view-records" class="view" hidden>
+    <h1>Track records</h1>
+    <p class="lead">The best 10 on every track: lap times, or points on the drift tracks.</p>
+    <div class="tabs" role="group" aria-label="Mode" data-for="records"></div>
+    <div id="records" class="grid"></div>
+  </section>
+
+  <section id="view-connect" class="view" hidden>
+    <h1>Connect</h1>
+    <p class="lead">The game looks up <code>ps2nfs04.ea.com</code> to find its server. Point it here in one of two ways.</p>
+    <div class="panel">
+      <h2>Server address</h2>
+      <p class="address"><code id="address"></code></p>
+    </div>
+    <div class="panel">
+      <h2>NFSUServerChanger (easiest)</h2>
+      <p>A mod for the game that picks the server without touching system files, on Windows and under Wine or Proton. Install it, set its <strong>Host</strong> option to the address above, then log out and in again.</p>
+      <p><a href="https://github.com/Pelorojo/NFSUServerChanger" rel="noopener">NFSUServerChanger on GitHub</a></p>
+    </div>
+    <div class="panel">
+      <h2>The hosts file</h2>
+      <p>Add this line:</p>
+      <pre><code id="hosts-line"></code></pre>
+      <p id="hosts-hint" hidden>Put the server's IP address in place of SERVER-IP: the hosts file takes no names. <code>ping</code> with the address above shows it.</p>
+      <ul>
+        <li><strong>Windows:</strong> <code>C:\Windows\System32\drivers\etc\hosts</code>, edited as administrator.</li>
+        <li><strong>Linux (Wine, Proton):</strong> <code>/etc/hosts</code> of the system. Wine ignores the hosts file inside its prefix.</li>
+        <li><strong>NixOS:</strong> <code id="nixos-line"></code></li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h2>Ports</h2>
+      <p>The server listens on TCP 10900, 10901, 10800 and 10980, and UDP 10800. To <strong>host</strong> a race, forward <strong>UDP 3658</strong> on your router to your own computer and allow it in its firewall: the other players' games connect to it directly.</p>
+      <p>Then start the game, choose <em>Play Online</em>, create a profile, pick a car and join a room.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot"><p id="version"></p></footer>
+</body>
+</html>
