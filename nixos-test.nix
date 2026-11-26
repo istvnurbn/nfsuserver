@@ -24,6 +24,13 @@ let
   rooms = "${pkgs.python3.interpreter} ${./tests}/rooms.py";
   # the JSON API for the website
   api = "${pkgs.python3.interpreter} ${./tests}/api.py";
+  # its admin login; the script imports accounts.py
+  admin = "${pkgs.python3.interpreter} ${./tests}/admin.py";
+  adminPassword = "correct horse battery staple";
+  adminSecret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+  adminHash = pkgs.runCommand "admin-hash" { nativeBuildInputs = [ pkgs.mkpasswd ]; } ''
+    mkpasswd -m yescrypt '${adminPassword}' > $out
+  '';
 in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
@@ -45,6 +52,9 @@ pkgs.testers.runNixOSTest {
           enable = true;
           openFirewall = true;
           news = "news from the test\n";
+          # store paths are fine in a test; for real, files outside the store
+          adminPasswordFile = "${adminHash}";
+          adminTotpFile = "${pkgs.writeText "admin-totp" adminSecret}";
           settings = {
             servername = "VM test server";
             serverexternalip = "203.0.113.7";
@@ -234,6 +244,10 @@ pkgs.testers.runNixOSTest {
     with subtest("the JSON API lists status, races, the leaderboard and track records, on localhost only"):
         server.succeed("${api} 127.0.0.1")
         client.fail("socat -u TCP:server:10990,connect-timeout=2 -")
+
+    with subtest("the admin logs in with password and code, resets passwords, reads the log and config"):
+        server.succeed("journalctl -u nfsuserver -o cat | grep -Fx 'Admin login on.'")
+        server.succeed("${admin} 127.0.0.1 '${adminPassword}' ${adminSecret}")
 
     with subtest("race reports that must not count are refused, a quit race does not decide the next"):
         server.succeed("${stats} 127.0.0.1 cheats")
