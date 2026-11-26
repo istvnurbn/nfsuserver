@@ -116,7 +116,7 @@ h1::after {
 
 h2 { font-size: 1.2rem; font-weight: 700; font-stretch: 112%; margin: 2.4rem 0 0.8rem; line-height: 1.2; }
 .panel h2, .card h2 { margin-top: 0; }
-.lead { color: var(--muted); margin-top: 0; max-width: 70ch; }
+.lead { color: var(--muted); margin-top: 0; }
 
 /* status: three readouts in one strip, like a gauge cluster */
 
@@ -139,7 +139,6 @@ h2 { font-size: 1.2rem; font-weight: 700; font-stretch: 112%; margin: 2.4rem 0 0
 .grid.rooms { grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); align-items: start; }
 .card, .panel { background: var(--asphalt); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.1rem; }
 .panel { margin-bottom: 0.9rem; }
-.panel > p, .panel > ul, .panel > ol { max-width: 72ch; }
 .card header { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
 .card h3 { margin: 0; font-size: 1rem; font-weight: 650; font-stretch: 108%; line-height: 1.3; }
 .card .meta { color: var(--muted); font-size: 0.88rem; margin: 0.2rem 0 0.6rem; }
@@ -243,7 +242,7 @@ tr.detail input + p.question { margin-top: 0.75rem; }
 #add-form .buttons { flex-wrap: nowrap; gap: 1rem; }
 #add-form .buttons button { margin-top: 0.5rem; flex: 0 1 11rem; }
 #add-result, #add-form + .lead { text-align: center; }
-#add-form + .lead { margin: 0.75rem auto 0; }
+#add-form + .lead { margin: 0.75rem 0 0; }
 .detail-form .question, .detail-form .meta { text-align: center; }
 .detail-form .buttons:first-child { margin-top: 0; }
 .detail-form .buttons button { margin-top: 0; }
