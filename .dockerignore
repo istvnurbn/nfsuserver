@@ -1,0 +1,4 @@
+*
+!nfsuserver
+nfsuserver/*.o
+nfsuserver/nfsuserver

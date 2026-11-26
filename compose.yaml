@@ -1,0 +1,48 @@
+# The lobby server and its website: Caddy serves site/ with a Let's Encrypt
+# certificate and passes /api/ on to the server. Setup: "Docker" in README.md.
+
+services:
+  nfsuserver:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "10900:10900"
+      - "10901:10901"
+      - "10800:10800"
+      - "10800:10800/udp"
+      - "10980:10980"
+      # the website: Caddy shares this container's network
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - data:/data
+      - ./docker/nfsu.conf:/data/nfsu.conf:ro
+      - ./docker/news.txt:/data/news.txt:ro
+    secrets:
+      - admin-password
+      - admin-totp
+
+  web:
+    image: docker.io/library/caddy:2
+    restart: unless-stopped
+    # the server's network: the JSON API stays on 127.0.0.1, where it trusts X-Real-IP
+    network_mode: service:nfsuserver
+    environment:
+      DOMAIN: ${DOMAIN:?put DOMAIN=your.domain in .env}
+    volumes:
+      - ./site:/srv:ro
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+secrets:
+  admin-password:
+    file: ./docker/admin-password
+  admin-totp:
+    file: ./docker/admin-totp
+
+volumes:
+  data:
+  caddy-data:
+  caddy-config:

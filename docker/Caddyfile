@@ -1,0 +1,18 @@
+{$DOMAIN} {
+	encode gzip
+	header {
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+	handle /api/* {
+		reverse_proxy 127.0.0.1:10990 {
+			# the admin login slows down guessing per visitor address
+			header_up X-Real-IP {remote_host}
+		}
+	}
+	handle {
+		root * /srv
+		file_server
+	}
+}
