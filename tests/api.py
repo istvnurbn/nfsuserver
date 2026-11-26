@@ -45,6 +45,8 @@ def main():
     expect((status["name"], status["address"]), ("VM test server", "203.0.113.7"), "server name and address")
     europe = [r for r in status["rooms"] if r["name"] == "Europe"]
     expect([(r["type"], r["mode"], r["ranked"]) for r in europe], [("A", "circuit", True)], "room A.Europe")
+    modes = {r["type"]: r["mode"] for r in status["rooms"]}
+    expect([modes.get(t) for t in "BCDH"], ["sprint", "drift", "drag", "drag"], "modes of rooms B, C, D and H")
 
     board, _ = get_json(server, "/api/leaderboard?mode=circuit")
     names = [p["persona"] for p in board["players"]]

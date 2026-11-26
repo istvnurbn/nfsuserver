@@ -24,6 +24,8 @@ static SOCKET ApiSocket = INVALID_SOCKET;
 static const char* ApiVersion = "";
 
 static const char* const MODE_NAMES[5] = { "all", "circuit", "sprint", "drag", "drift" };
+// room letters follow the rooms_* keys of nfsu.conf: A-D ranked, E-H unranked
+static const char* const ROOM_MODES[4] = { "circuit", "sprint", "drift", "drag" };
 
 static void Str(std::string& out, const char* s) {
 	char u[8];
@@ -43,14 +45,14 @@ static void Int(std::string& out, long v) {
 	out += b;
 }
 
-// "A.Global": the letter is the type, A-D ranked and E-H unranked, each circuit, sprint, drag, drift
+// "A.Global": the letter is the type, A-D ranked and E-H unranked
 static void RoomFields(std::string& out, const char* name) {
 	char type[2] = { name[0], 0 };
 	int t = name[0] - 'A';
 	out += "\"type\":"; Str(out, type);
 	out += ",\"name\":"; Str(out, name[0] && name[1] == '.' ? name + 2 : name);
 	if (t >= 0 && t < 8) {
-		out += ",\"mode\":"; Str(out, MODE_NAMES[1 + t % 4]);
+		out += ",\"mode\":"; Str(out, ROOM_MODES[t % 4]);
 		out += t < 4 ? ",\"ranked\":true" : ",\"ranked\":false";
 	}
 }
