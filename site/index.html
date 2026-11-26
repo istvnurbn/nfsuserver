@@ -18,6 +18,8 @@
     <a href="#leaderboard">Leaderboard</a>
     <a href="#records">Records</a>
     <a href="#connect">Connect</a>
+    <!-- wrench: the "tool" icon of Feather Icons, MIT licence -->
+    <a href="admin.html" class="admin-link" aria-label="Admin" title="Admin"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></a>
   </nav>
 </header>
 
@@ -26,6 +28,7 @@
 <main>
   <section id="view-status" class="view" hidden>
     <h1>Status</h1>
+    <p id="server-meta" class="lead"></p>
     <div id="stats" class="tiles"></div>
     <h2>Ranked rooms</h2>
     <div id="rooms-ranked" class="grid rooms"></div>
@@ -80,13 +83,39 @@
       </ul>
     </div>
     <div class="panel">
-      <h2>Ports</h2>
-      <p>The server listens on TCP 10900, 10901, 10800 and 10980, and UDP 10800. To <strong>host</strong> a race, forward <strong>UDP 3658</strong> on your router to your own computer and allow it in its firewall: the other players' games connect to it directly.</p>
-      <p>Then start the game, choose <em>Play Online</em>, create a profile, pick a car and join a room.</p>
+      <h2>Start playing</h2>
+      <ol class="steps">
+        <li>Start the game and choose <strong>Play Online</strong>.</li>
+        <li>Create a profile, agree to the rules and click <strong>Use Profile</strong>.</li>
+        <li>Log in, or create an account the first time.</li>
+        <li>Pick a car and join a room. Create a game there, or join one.</li>
+      </ol>
+    </div>
+
+    <div class="panel">
+      <h2>Hosting a race</h2>
+      <p>Joining races needs nothing extra. To <strong>host</strong> one, the other players' games connect straight to your computer, so:</p>
+      <ul>
+        <li>forward <strong>UDP port 3658</strong> on your router to your computer, and</li>
+        <li>allow that port in your computer's firewall.</li>
+      </ul>
+      <p>Without it you can still race; just let someone else host.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Server ports</h2>
+      <p class="lead">For reference, if something doesn't connect. They are open on the server; players don't need to do anything with them.</p>
+      <div class="scroll"><table class="ports">
+        <thead><tr><th scope="col">Port</th><th scope="col">What it is for</th></tr></thead>
+        <tbody>
+          <tr><td>10900 TCP</td><td>The first contact: the game asks where the lobby is.</td></tr>
+          <tr><td>10901 TCP</td><td>The lobby: logging in, rooms, chat and setting up races.</td></tr>
+          <tr><td>10800 TCP and UDP</td><td>Server lists and the in-game LAN search find the server here.</td></tr>
+          <tr><td>10980 TCP</td><td>Who is online, for launchers such as NFSUServerChanger.</td></tr>
+        </tbody>
+      </table></div>
     </div>
   </section>
 </main>
-
-<footer class="foot"><p id="version"></p></footer>
 </body>
 </html>

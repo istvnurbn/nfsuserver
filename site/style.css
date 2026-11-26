@@ -64,6 +64,8 @@ nav a {
   border: 1px solid transparent; transform: skewX(-12deg);
 }
 nav a:hover { color: var(--text); border-color: var(--line); }
+nav a.admin-link { display: inline-flex; align-items: center; justify-content: center; }
+nav a.admin-link svg { transform: skewX(12deg); } /* upright inside the slanted box */
 nav a[aria-current="page"] {
   color: #000; background: var(--neon); border-color: var(--neon);
   box-shadow: 0 0 16px rgba(31, 224, 255, 0.45);
@@ -128,6 +130,9 @@ table { width: 100%; border-collapse: collapse; background: var(--panel); border
 th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--panel-2); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.steps, .panel ul { padding-left: 1.4rem; }
+.steps li, .panel ul li { margin: 0.3rem 0; }
+table.ports td:first-child { white-space: nowrap; font-weight: 700; color: var(--lime); }
 #leaderboard tbody tr:nth-child(-n + 3) td:first-child { color: var(--lime); font-weight: 800; }
 .card table { border: 0; background: transparent; }
 .card td, .card th { padding: 0.3rem 0.4rem; }
@@ -169,11 +174,14 @@ tr.detail p { margin: 0.5rem 0 0; }
 code.secret { font-size: 1.2rem; padding: 0.1rem 0.4rem; background: #000; border: 1px solid var(--lime); }
 pre.log { max-height: 420px; overflow: auto; font-size: 0.8rem; line-height: 1.45; white-space: pre-wrap; color: #c9d4e2; }
 
-.foot { padding: 1rem clamp(1rem, 4vw, 3rem); color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line); }
-.foot p { margin: 0; }
 
 @media (max-width: 640px) {
   .top { position: static; }
-  nav { margin-left: 0; }
-  nav a { padding: 0.4rem 0.6rem; }
+  /* one row: the text shrinks with the screen so all five items fit, down to 320 px */
+  nav { margin-left: 0; width: 100%; flex-wrap: nowrap; gap: 0.2rem; }
+  nav a.admin-link { flex: 0 0 auto; padding-left: 0.5rem; padding-right: 0.5rem; }
+  nav a, nav button.link {
+    flex: 1 1 auto; text-align: center; white-space: nowrap;
+    padding: 0.7rem 0.15rem; font-size: clamp(0.58rem, 2.85vw, 0.78rem); letter-spacing: 0.02em; /* taller: easier to tap */
+  }
 }

@@ -64,9 +64,9 @@ function roomCard(room) {
 function renderStatus() {
   const s = state.status;
   if (!s) return;
+  document.getElementById('server-meta').textContent = 'Up ' + uptime(s.uptime) + ' · nfsuserver ' + s.version;
   document.getElementById('stats').replaceChildren(
-    tile(s.players, 'Players online'), tile(s.racing, 'Racing now'),
-    tile(s.rooms.length, 'Rooms'), tile(uptime(s.uptime), 'Uptime'));
+    tile(s.players, 'Players online'), tile(s.racing, 'Racing now'), tile(s.rooms.length, 'Rooms'));
   const order = (a, b) => MODES.indexOf(a.mode) - MODES.indexOf(b.mode) || a.name.localeCompare(b.name);
   const rooms = s.rooms.slice().sort(order);
   document.getElementById('rooms-ranked').replaceChildren(...rooms.filter((r) => r.ranked).map(roomCard));
@@ -78,7 +78,6 @@ async function loadStatus() {
     state.status = await api('status');
     document.getElementById('server-name').textContent = state.status.name;
     document.title = state.status.name + ' · NFSU lobby server';
-    document.getElementById('version').textContent = 'nfsuserver ' + state.status.version;
     setOnline(true);
   } catch (e) {
     setOnline(false);
