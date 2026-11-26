@@ -267,7 +267,7 @@ pkgs.testers.runNixOSTest {
     with subtest("nginx serves the pages and the API, and tells the server who the visitor is"):
         server.wait_for_open_port(80)
         page = client.succeed("curl -sf http://server/")
-        assert "<title>NFSU lobby server</title>" in page, page
+        assert "<title>Lobby server</title>" in page, page
         assert "VM test server" in client.succeed("curl -sf http://server/api/status")
         headers = client.succeed("curl -sfI http://server/")
         assert "frame-ancestors 'none'" in headers, headers
