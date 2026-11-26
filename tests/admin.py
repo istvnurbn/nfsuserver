@@ -20,7 +20,7 @@ import time
 
 from lobby_addresses import encode_pass
 
-from accounts import acct, auth, connect, expect
+from accounts import acct, auth, connect, expect, reply
 from stats import player
 
 
@@ -175,21 +175,31 @@ def main():
     # four more personas on the rank lists would shift the positions stats.py checks later
     expect(call(server, "POST", "/api/admin/delete", {"account": "withpers"}, session)[0], 200, "removing them again")
 
-    # an account named like another player's persona: the server looks each up by its own kind
+    # an account's name is its owner's as a persona name too, in the game and on the admin page
     p1 = connect(server)
-    expect(acct(p1, "clashone", "clash123"), "acct", "a player signs up")
+    expect(acct(p1, "nameowner", "owner123"), "acct", "a player signs up")
     p1 = connect(server)
-    expect(auth(p1, "clashone", "clash123"), "auth", "and logs in")
-    p1.request("cper", "PERS=clashtwo\n", "cper")
-    p1.request("pers", "PERS=clashtwo\n", "pers")
+    expect(auth(p1, "nameowner", "owner123"), "auth", "and logs in")
+    p1.request("cper", "PERS=ownerpers\n", "cper")
     p2 = connect(server)
-    expect(acct(p2, "clashtwo", "clash123"), "acct", "an account named like that persona signs up")
+    expect(acct(p2, "otherguy", "other123"), "acct", "another player signs up")
     p2 = connect(server)
-    expect(auth(p2, "clashtwo", "clash123"), "auth", "and logs in while the persona is online")
-    p2.request("cper", "PERS=clashthree\n", "cper")
-    p1.request("pers", "PERS=clashtwo\n", "pers")
-    print("ok  both stay connected, each with their own personas")
-    for name in ("clashone", "clashtwo"):
+    expect(auth(p2, "otherguy", "other123"), "auth", "and logs in")
+    expect(reply(p2, "cper", "PERS=NameOwner\n"), "cperdupl", "a persona named like another player's account")
+    expect(reply(p1, "cper", "PERS=NameOwner\n"), "cper", "the owner takes their account name as a persona")
+    expect(acct(connect(server), "OwnerPers", "x1234567"), "acctdupl", "an account named like another player's persona")
+    expect(call(server, "POST", "/api/admin/personas", {"account": "otherguy", "persona": "nameowner"}, session)[0], 409,
+           "the admin page adds no such persona")
+    expect(call(server, "POST", "/api/admin/accounts", {"account": "ownerpers", "password": "x1234567"}, session)[0], 409,
+           "nor such an account")
+    expect(call(server, "POST", "/api/admin/rename", {"account": "otherguy", "to": "ownerpers"}, session)[0], 409,
+           "nor renames an account to another player's persona")
+    call(server, "POST", "/api/admin/personas", {"account": "otherguy", "persona": "otherpers"}, session)
+    expect(call(server, "POST", "/api/admin/persona", {"account": "otherguy", "persona": "otherpers", "to": "nameowner"},
+                session)[0], 409, "nor renames a persona to another player's account")
+    expect(call(server, "POST", "/api/admin/rename", {"account": "otherguy", "to": "otherpers"}, session)[0], 200,
+           "an account may take its own persona's name")
+    for name in ("nameowner", "otherpers"):
         call(server, "POST", "/api/admin/delete", {"account": name}, session)
 
     # deleting a player who is online, with a persona on the rank list

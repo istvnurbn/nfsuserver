@@ -316,9 +316,27 @@ int AccountLogin( const char * given, const char * pass, const char * ip, char *
 	return LoadPersonas (name, personas) ? ACC_OK : ACC_ERROR;
 }
 
+// An account's name is its owner's as a persona name too: no other player may
+// have a persona of that name (any case). Older databases may hold such pairs.
+static bool Taken( const char * sql, const char * a, const char * b = NULL ) {
+	sqlite3_stmt * st = NULL;
+	int rc = Run (&st, sql, a, b);
+	sqlite3_finalize (st);
+	return rc == SQLITE_ROW;
+}
+
+static bool AccountNameOfOther( const char * persona, const char * account ) {
+	return Taken ("SELECT 1 FROM accounts WHERE name = ?1 AND name <> ?2", persona, account);
+}
+
+static bool PersonaOfOther( const char * name, const char * account ) {
+	return Taken ("SELECT 1 FROM personas WHERE name = ?1 AND account <> ?2", name, account);
+}
+
 int AccountCreate( const char * name, const char * pass ) {
 	char hash[128];
 	if (!PassValid (pass)) return ACC_BADPASS;
+	if (PersonaOfOther (name, "")) return ACC_DUPL;
 	if (!Hash (pass, hash, sizeof (hash))) return ACC_ERROR;
 	int rc = Exec ("INSERT INTO accounts (name, password_hash) VALUES (?, ?)", name, hash);
 	if (rc == SQLITE_DONE) return ACC_OK;
@@ -397,6 +415,7 @@ int AccountRename( const char * given, const char * to, char * name ) {
 	}
 	snprintf (name, 100, "%s", (const char *)sqlite3_column_text (st, 0));
 	sqlite3_finalize (st);
+	if (PersonaOfOther (to, name)) return ACC_DUPL;
 	static const char * const sql[2] = {
 		"UPDATE accounts SET name = ?1 WHERE name = ?2",
 		"UPDATE personas SET account = ?1 WHERE account = ?2" };
@@ -424,6 +443,7 @@ int PersonaFind( const char * account, const char * persona, char * stored, char
 int PersonaRename( const char * account, const char * persona, const char * to, char * stored, char * old ) {
 	int rc = PersonaFind (account, persona, stored, old);
 	if (rc != ACC_OK) return rc;
+	if (AccountNameOfOther (to, stored)) return ACC_DUPL;
 	static const char * const sql[3] = {
 		"UPDATE personas SET name = ?1 WHERE name = ?2",
 		"UPDATE stats SET persona = ?1 WHERE persona = ?2",
@@ -450,6 +470,7 @@ int PersonaCreate( const char * account, const char * persona ) {
 	int count = sqlite3_column_int (st, 0);
 	sqlite3_finalize (st);
 	if (count >= 4) return ACC_MAXP;
+	if (AccountNameOfOther (persona, account)) return ACC_DUPL;
 
 	int rc = Exec ("INSERT INTO personas (name, account) VALUES (?, ?)", persona, account);
 	if (rc == SQLITE_DONE) return ACC_OK;

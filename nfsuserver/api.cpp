@@ -441,9 +441,9 @@ static void Admin(SOCKET s, const Request& r) {
 			AccountDelete(account.c_str(), name, none); // all or nothing
 		}
 		ClientConnections.mut.Unlock();
-		if (prc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that persona exists already\"}");
+		if (prc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that name is taken by another persona or account\"}");
 		else if (prc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not add the persona\"}");
-		else if (rc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that account exists already\"}");
+		else if (rc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that name is taken by another account or persona\"}");
 		else if (rc == ACC_BADPASS) Reply(s, "400 Bad Request", "{\"error\":\"passwords are 4-16 letters and digits\"}");
 		else if (rc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not add the account\"}");
 		else {
@@ -494,7 +494,7 @@ static void Admin(SOCKET s, const Request& r) {
 				if (strcmp(u->Username, account) == 0 && !u->Deleted) LoadPersonas(account, u->Personas);
 		ClientConnections.mut.Unlock();
 		if (rc == ACC_MAXP) Reply(s, "409 Conflict", "{\"error\":\"this player has 4 personas, the most the game allows\"}");
-		else if (rc != ACC_OK) NameError(s, rc, "that persona exists already", "could not add the persona");
+		else if (rc != ACC_OK) NameError(s, rc, "that name is taken by another persona or account", "could not add the persona");
 		else {
 			snprintf(log, sizeof(log), "Admin added persona %s to account %s.\n", persona.c_str(), account);
 			Log(log);
@@ -534,7 +534,7 @@ static void Admin(SOCKET s, const Request& r) {
 		int rc = AccountRename(in["account"].c_str(), to.c_str(), old);
 		if (rc == ACC_OK) DropUser(old);
 		ClientConnections.mut.Unlock();
-		if (rc != ACC_OK) NameError(s, rc, "that account exists already", "could not rename the account");
+		if (rc != ACC_OK) NameError(s, rc, "that name is taken by another account or persona", "could not rename the account");
 		else {
 			snprintf(log, sizeof(log), "Admin renamed account %s to %s.\n", old, to.c_str());
 			Log(log);
@@ -558,7 +558,7 @@ static void Admin(SOCKET s, const Request& r) {
 			DropUser(account);
 		}
 		ClientConnections.mut.Unlock();
-		if (rc != ACC_OK) NameError(s, rc, "that persona exists already", "could not rename the persona");
+		if (rc != ACC_OK) NameError(s, rc, "that name is taken by another persona or account", "could not rename the persona");
 		else {
 			snprintf(log, sizeof(log), "Admin renamed persona %s of account %s to %s.\n", old, account, to.c_str());
 			Log(log);

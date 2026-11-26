@@ -6,7 +6,8 @@
 
 // Accounts, personas, stats and track records live in an SQLite database
 // (nfsu.db in the working directory). Name rules follow the game's own messages: account names 4-16,
-// personas 3-12, passwords 4-16 characters.
+// personas 3-12, passwords 4-16 characters. An account's name is reserved as a
+// persona name for that account: ACC_DUPL for anyone else.
 
 enum { ACC_OK, ACC_NOUSER, ACC_WRONG, ACC_BADPASS, ACC_BANNED, ACC_LOCKED, ACC_THROTTLED, ACC_DUPL, ACC_MAXP, ACC_ERROR };
 
