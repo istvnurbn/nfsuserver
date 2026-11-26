@@ -104,6 +104,7 @@ h2 { font-size: 1.05rem; font-weight: 800; color: var(--neon); margin: 2rem 0 0.
 .card li:first-child { border-top: 0; }
 .card .car { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .card.empty-room { opacity: 0.55; }
+.card h3 + .count, .card header + ul, .card header + .empty { margin-top: 0.5rem; }
 .count { font-weight: 800; color: var(--neon); }
 
 .badge { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.5rem; border-radius: 2px; white-space: nowrap; }

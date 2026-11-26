@@ -57,8 +57,7 @@ function roomCard(room) {
     ? el('ul', null, ...room.players.map((p) => el('li', null, p)))
     : el('p', { class: 'empty' }, 'Empty');
   return el('article', { class: 'card' + (room.players.length ? '' : ' empty-room') },
-    el('header', null, el('h3', null, cap(room.mode || 'Room')), el('span', { class: 'count' }, room.players.length)),
-    el('p', { class: 'meta' }, room.name),
+    el('header', null, el('h3', null, cap(room.mode || 'Room') + ' · ' + room.name), el('span', { class: 'count' }, room.players.length)),
     people);
 }
 
