@@ -35,16 +35,19 @@ in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
 
-  # socat plays the game, a server list and the tracker
+  # socat plays the game, a server list and the tracker; curl a browser
   defaults =
     { pkgs, ... }:
     {
-      environment.systemPackages = [ pkgs.socat ];
+      environment.systemPackages = [
+        pkgs.socat
+        pkgs.curl
+      ];
     };
 
   nodes = {
     server =
-      { nodes, ... }:
+      { nodes, lib, ... }:
       {
         imports = [ ./module.nix ];
 
@@ -55,6 +58,10 @@ pkgs.testers.runNixOSTest {
           # store paths are fine in a test; for real, files outside the store
           adminPasswordFile = "${adminHash}";
           adminTotpFile = "${pkgs.writeText "admin-totp" adminSecret}";
+          website = {
+            enable = true;
+            hostName = "server";
+          };
           settings = {
             servername = "VM test server";
             serverexternalip = "203.0.113.7";
@@ -71,6 +78,12 @@ pkgs.testers.runNixOSTest {
             ];
             rooms_unranked_drag = [ "Quarter mile" ];
           };
+        };
+
+        # no certificate in a VM without internet: plain HTTP
+        services.nginx.virtualHosts.server = {
+          enableACME = lib.mkForce false;
+          forceSSL = lib.mkForce false;
         };
 
         # The client stands in for both public server lists.
@@ -103,7 +116,9 @@ pkgs.testers.runNixOSTest {
       };
   };
 
-  testScript = ''
+  testScript =
+    { nodes, ... }:
+    ''
     tcp_ports = [10900, 10901, 10800, 10980]
 
     # What the game sends first: a 12 byte header, the command and the total
@@ -248,6 +263,22 @@ pkgs.testers.runNixOSTest {
     with subtest("the admin logs in with password and code, resets passwords, reads the log and config"):
         server.succeed("journalctl -u nfsuserver -o cat | grep -Fx 'Admin login on.'")
         server.succeed("${admin} 127.0.0.1 '${adminPassword}' ${adminSecret}")
+
+    with subtest("nginx serves the pages and the API, and tells the server who the visitor is"):
+        server.wait_for_open_port(80)
+        page = client.succeed("curl -sf http://server/")
+        assert "<title>NFSU lobby server</title>" in page, page
+        assert "VM test server" in client.succeed("curl -sf http://server/api/status")
+        headers = client.succeed("curl -sfI http://server/")
+        assert "frame-ancestors 'none'" in headers, headers
+        client.succeed(
+            "curl -4 -s -o /dev/null -H 'Content-Type: application/json'"
+            " -d '{\"password\":\"x\",\"code\":\"000000\"}' http://server/api/admin/login"
+        )
+        server.wait_until_succeeds(
+            "journalctl -u nfsuserver -o cat | grep -F 'Admin login failed from ${nodes.client.networking.primaryIPAddress}.'",
+            timeout=30,
+        )
 
     with subtest("race reports that must not count are refused, a quit race does not decide the next"):
         server.succeed("${stats} 127.0.0.1 cheats")
