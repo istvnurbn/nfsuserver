@@ -141,6 +141,27 @@ in
       '';
     };
 
+    website = {
+      enable = lib.mkEnableOption ''
+        the website: nginx serves the pages in {file}`site/` and passes
+        {file}`/api/` on to the server's JSON API, with TLS from Let's Encrypt
+        (set {option}`security.acme.acceptTerms` and
+        {option}`security.acme.defaults.email`)'';
+
+      hostName = mkOption {
+        type = types.str;
+        example = "nfsu.example.com";
+        description = "Domain name of the website.";
+      };
+
+      root = mkOption {
+        type = types.path;
+        default = ./site;
+        defaultText = lib.literalExpression "./site";
+        description = "Directory with the pages.";
+      };
+    };
+
     news = mkOption {
       type = types.lines;
       default = "Welcome to ${cfg.settings.servername}!\n";
@@ -329,6 +350,10 @@ in
       }) settingsOrder
       ++ [
         {
+          assertion = !cfg.website.enable || cfg.settings.apiip == "127.0.0.1" && cfg.settings.apiproxyip == "127.0.0.1";
+          message = "services.nfsuserver.website: nginx reaches the JSON API on 127.0.0.1, so keep settings.apiip and settings.apiproxyip at 127.0.0.1.";
+        }
+        {
           assertion = (cfg.adminPasswordFile == null) == (cfg.adminTotpFile == null);
           message = "services.nfsuserver: set both adminPasswordFile and adminTotpFile, or neither.";
         }
@@ -342,8 +367,42 @@ in
       ];
 
     networking.firewall = lib.mkIf cfg.openFirewall {
-      allowedTCPPorts = tcpPorts;
+      allowedTCPPorts = tcpPorts ++ lib.optionals cfg.website.enable [
+        80
+        443
+      ];
       allowedUDPPorts = udpPorts;
+    };
+
+    services.nginx = lib.mkIf cfg.website.enable {
+      enable = true;
+      recommendedTlsSettings = lib.mkDefault true;
+      # about 10 admin logins a minute per address, on top of the server's own slowdown
+      appendHttpConfig = ''
+        limit_req_zone $binary_remote_addr zone=nfsu_login:1m rate=10r/m;
+      '';
+      virtualHosts.${cfg.website.hostName} =
+        let
+          api = {
+            proxyPass = "http://127.0.0.1:10990";
+            # sets X-Real-IP, which the admin login's slowdown needs
+            recommendedProxySettings = true;
+          };
+        in
+        {
+          enableACME = lib.mkDefault true;
+          forceSSL = lib.mkDefault true;
+          inherit (cfg.website) root;
+          extraConfig = ''
+            add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" always;
+            add_header X-Content-Type-Options nosniff always;
+            add_header Referrer-Policy no-referrer always;
+          '';
+          locations."/api/" = api;
+          locations."= /api/admin/login" = api // {
+            extraConfig = "limit_req zone=nfsu_login burst=5 nodelay;";
+          };
+        };
     };
 
     systemd.services.nfsuserver = {
