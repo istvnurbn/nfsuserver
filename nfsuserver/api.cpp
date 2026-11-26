@@ -8,9 +8,9 @@
 //   GET /api/records                    best 10 on every track
 //
 // Admin (only with adminpasswordfile and admintotpfile set; POSTs take JSON):
-//   POST /api/admin/login     {"password", "code"} sets the session cookie
+//   POST /api/admin/login     {"password", "code"} sets the session cookie; no code in LAN mode
 //   POST /api/admin/logout
-//   GET  /api/admin/session   200 while logged in, else 401
+//   GET  /api/admin/session   200 while logged in, else 401; "totp" false in LAN mode
 //   GET  /api/admin/accounts  every account with its personas, created and last login
 //   POST /api/admin/accounts  {"account", "password"} adds a player; an empty password makes one up and returns it
 //   POST /api/admin/password  {"account", "password"}: an empty password makes one up and returns it
@@ -325,16 +325,16 @@ static void Admin(SOCKET s, const Request& r) {
 			snprintf(log, sizeof(log), "Admin logged in from %s.\n", r.ip.c_str());
 			Log(log);
 			Reply(s, "200 OK", "{\"admin\":true}", std::string("Set-Cookie: ") + SESSION_COOKIE + "=" + token
-				+ "; Path=/api/admin; Max-Age=43200; HttpOnly; Secure; SameSite=Strict\r\n");
+				+ "; Path=/api/admin; Max-Age=43200; HttpOnly; " + (AdminLan() ? "" : "Secure; ") + "SameSite=Strict\r\n");
 		}
 		return;
 	}
 	std::string token = r.Cookie(SESSION_COOKIE);
 	if (!AdminSession(token)) {
-		Reply(s, "401 Unauthorized", "{\"error\":\"log in first\"}");
+		Reply(s, "401 Unauthorized", "{\"error\":\"log in first\"" + totp);
 		return;
 	}
-	if (action == "session" && !post) Reply(s, "200 OK", "{\"admin\":true}");
+	if (action == "session" && !post) Reply(s, "200 OK", "{\"admin\":true" + totp);
 	else if (action == "logout" && post) {
 		AdminLogout(token);
 		Reply(s, "200 OK", "{\"admin\":false}", std::string("Set-Cookie: ") + SESSION_COOKIE
@@ -344,6 +344,10 @@ static void Admin(SOCKET s, const Request& r) {
 		std::string account = in["account"], password = in["password"];
 		bool made = password.empty();
 		if (made) password = RandomPassword();
+		} else if (rc == ADMIN_FAR) {
+			snprintf(log, sizeof(log), "Admin login refused from %s: LAN mode takes private addresses only.\n", r.ip.c_str());
+			Log(log);
+			Reply(s, "403 Forbidden", "{\"error\":\"the admin login works only from the local network\"}");
 		ClientConnections.mut.Lock(); // the lobby uses the database under this lock too
 		int rc = AccountSetPassword(account.c_str(), password.c_str());
 		ClientConnections.mut.Unlock();
@@ -351,12 +355,14 @@ static void Admin(SOCKET s, const Request& r) {
 		else if (rc == ACC_BADPASS) Reply(s, "400 Bad Request", "{\"error\":\"passwords are 4-16 letters and digits\"}");
 		else if (rc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not save the password\"}");
 		else {
+			// a LAN often has no HTTPS, and a browser keeps no Secure cookie from plain HTTP
 			snprintf(log, sizeof(log), "Admin set a new password for account %.100s.\n", account.c_str());
 			Log(log);
 			std::string out = "{\"account\":";
 			Str(out, account.c_str());
 			if (made) { out += ",\"password\":"; Str(out, password.c_str()); }
 			Reply(s, "200 OK", out + "}");
+	std::string totp = AdminLan() ? ",\"totp\":false}" : ",\"totp\":true}";
 		}
 	}
 	else if (action == "accounts" && !post) {

@@ -1,11 +1,13 @@
-// Admin login for the website: password hash + TOTP, sessions, a slowdown per
-// address after wrong tries, and the log lines the admin page shows.
+// Admin login for the website: password hash + TOTP (or, in LAN mode, the
+// password alone from private addresses), sessions, a slowdown per address after
+// wrong tries, and the log lines the admin page shows.
 
 #include "win_nix.h"
 #include "admin.h"
 #include <map>
 #include <deque>
 #include <crypt.h>
+#include <arpa/inet.h>
 
 extern void Log(char* log);
 
@@ -76,6 +78,7 @@ int Totp( const unsigned char * key, size_t len, unsigned long long step ) {
 static std::string passwordHash;
 static std::vector<unsigned char> totpKey;
 static unsigned long long lastStep = 0; // a code is good once
+static bool lan = false; // no TOTP secret: password only, from private addresses only
 
 static bool ReadFirstLine( const char * path, std::string & out ) {
 	FILE * f = fopen (path, "r");
@@ -115,8 +118,8 @@ bool AdminStart( const char * passwordFile, const char * totpFile ) {
 		Log ((char *)"[error] TOTP self-check failed, admin login off.\n");
 		return false;
 	}
-	if (passwordFile[0] == 0 && totpFile[0] == 0) {
-		Log ((char *)"Admin login off: adminpasswordfile and admintotpfile are not set.\n");
+	if (passwordFile[0] == 0) {
+		Log ((char *)"Admin login off: adminpasswordfile is not set.\n");
 		return false;
 	}
 	std::string secret;
@@ -125,6 +128,11 @@ bool AdminStart( const char * passwordFile, const char * totpFile ) {
 		Log (log);
 		passwordHash.clear ();
 		return false;
+	}
+	if (totpFile[0] == 0) {
+		lan = true;
+		Log ((char *)"Admin login on in LAN mode: password only, from private addresses only.\n");
+		return true;
 	}
 	if (!ReadFirstLine (totpFile, secret) || !Base32 (secret, totpKey)) {
 		snprintf (log, sizeof (log), "[error] Admin login off: %s holds no base32 TOTP secret.\n", totpFile);
@@ -137,6 +145,21 @@ bool AdminStart( const char * passwordFile, const char * totpFile ) {
 }
 
 bool AdminEnabled() { return !passwordHash.empty (); }
+bool AdminLan() { return lan; }
+
+// loopback, link-local and the private ranges (RFC 1918, RFC 4193), also as ::ffff:a.b.c.d
+bool PrivateAddress( const std::string & ip ) {
+	unsigned char a[16];
+	if (inet_pton (AF_INET, ip.c_str (), a) != 1) {
+		if (inet_pton (AF_INET6, ip.c_str (), a) != 1) return false;
+		static const unsigned char mapped[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff }, loop[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+		if (memcmp (a, mapped, 12) != 0)
+			return memcmp (a, loop, 16) == 0 || (a[0] & 0xfe) == 0xfc || (a[0] == 0xfe && (a[1] & 0xc0) == 0x80);
+		memmove (a, a + 12, 4);
+	}
+	return a[0] == 10 || a[0] == 127 || (a[0] == 172 && (a[1] & 0xf0) == 16)
+		|| (a[0] == 192 && a[1] == 168) || (a[0] == 169 && a[1] == 254);
+}
 
 // --- randomness ---
 
@@ -179,6 +202,7 @@ static bool CheckCode( const std::string & code, time_t now ) {
 
 int AdminLogin( const std::string & ip, const std::string & password, const std::string & code, std::string & token, int & retry ) {
 	time_t now = time (NULL);
+	if (lan && !PrivateAddress (ip)) return ADMIN_FAR;
 	std::map<std::string, Tries>::iterator it = tries.find (ip);
 	if (it != tries.end () && it->second.until > now) {
 		retry = (int)(it->second.until - now);
@@ -188,7 +212,7 @@ int AdminLogin( const std::string & ip, const std::string & password, const std:
 	memset (&cd, 0, sizeof (cd));
 	const char * h = crypt_rn (password.c_str (), passwordHash.c_str (), &cd, sizeof (cd));
 	bool passOk = h != NULL && h[0] != '*' && passwordHash == h;
-	if (!passOk || !CheckCode (code, now)) { // the code is checked only with the right password: no hint which was wrong
+	if (!passOk || (!lan && !CheckCode (code, now))) { // the code is checked only with the right password: no hint which was wrong
 		if (tries.size () > 10000) // many addresses must not fill the memory
 			for (it = tries.begin (); it != tries.end ();)
 				if (it->second.until <= now - MAX_WAIT) tries.erase (it++); else ++it;

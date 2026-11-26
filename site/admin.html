@@ -29,8 +29,10 @@
     <form id="login-form" class="panel narrow">
       <label for="password">Password</label>
       <input id="password" type="password" autocomplete="current-password" required>
-      <label for="code">Code from the authenticator app</label>
-      <input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+      <div id="code-field">
+        <label for="code">Code from the authenticator app</label>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+      </div>
       <button type="submit">Log in</button>
       <p id="login-error" class="error" role="alert"></p>
     </form>

@@ -81,11 +81,12 @@ let
   # systemd hands the admin secrets to the service here (LoadCredential)
   credentials = "/run/credentials/nfsuserver.service";
   adminOn = cfg.adminPasswordFile != null;
+  totpOn = cfg.adminTotpFile != null;
 
   configFile = pkgs.writeText "nfsu.conf" (
     lib.concatMapStrings (key: confLine key + "\n") settingsOrder
     + "adminpasswordfile = ${lib.optionalString adminOn "${credentials}/admin-password"}\n"
-    + "admintotpfile = ${lib.optionalString adminOn "${credentials}/admin-totp"}\n"
+    + "admintotpfile = ${lib.optionalString totpOn "${credentials}/admin-totp"}\n"
   );
   newsFile = pkgs.writeText "news.txt" cfg.news;
 
@@ -122,9 +123,9 @@ in
       example = "/run/secrets/nfsu-admin-password";
       description = ''
         File with the crypt hash of the website's admin password, made with
-        `mkpasswd -m yescrypt`. Together with
-        {option}`services.nfsuserver.adminTotpFile` it turns the admin login
-        of the JSON API on. The service reads it as a systemd credential, so it
+        `mkpasswd -m yescrypt`. It turns the admin login of the JSON API on,
+        together with {option}`services.nfsuserver.adminTotpFile`, or without
+        it in LAN mode. The service reads it as a systemd credential, so it
         can stay readable by root only. Give it as a string: a Nix path would
         be copied into the world-readable store.
       '';
@@ -138,6 +139,12 @@ in
         File with the base32 secret of the admin's authenticator app (TOTP),
         for example from `head -c 20 /dev/urandom | base32`. To change phones,
         put a new secret in it and restart the service.
+
+        Left `null`, the admin login runs in LAN mode: the password alone,
+        accepted only from private addresses (10.0.0.0/8, 172.16.0.0/12,
+        192.168.0.0/16, loopback, link-local, fc00::/7), and the session
+        cookie works over plain HTTP. Only for a server that the internet
+        reaches through no proxy that hides the visitor's address.
       '';
     };
 
@@ -354,8 +361,8 @@ in
           message = "services.nfsuserver.website: nginx reaches the JSON API on 127.0.0.1, so keep settings.apiip and settings.apiproxyip at 127.0.0.1.";
         }
         {
-          assertion = (cfg.adminPasswordFile == null) == (cfg.adminTotpFile == null);
-          message = "services.nfsuserver: set both adminPasswordFile and adminTotpFile, or neither.";
+          assertion = totpOn -> adminOn;
+          message = "services.nfsuserver: adminTotpFile needs adminPasswordFile.";
         }
         {
           assertion = lib.stringLength cfg.news <= 1000;
@@ -426,10 +433,9 @@ in
         StateDirectoryMode = "0700";
         UMask = "0077";
         DynamicUser = true;
-        LoadCredential = lib.optionals adminOn [
-          "admin-password:${cfg.adminPasswordFile}"
-          "admin-totp:${cfg.adminTotpFile}"
-        ];
+        LoadCredential =
+          lib.optional adminOn "admin-password:${cfg.adminPasswordFile}"
+          ++ lib.optional totpOn "admin-totp:${cfg.adminTotpFile}";
 
         # It has no way to recover from errors, and input it does not expect
         # tends to crash it. Accounts and statistics are written to disk as

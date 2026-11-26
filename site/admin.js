@@ -55,6 +55,7 @@ const when = (s) => (s ? new Date(s.replace(' ', 'T') + 'Z').toLocaleString() : 
 let players = [];
 let open = null;      // the account whose row is open
 let mode = 'actions'; // what that row shows: actions, password or delete
+let totp = true;      // false in LAN mode: the password alone
 
 async function loadPlayers() {
   const { status, data } = await call('GET', 'accounts');
@@ -211,7 +212,7 @@ $('login-form').addEventListener('submit', async (e) => {
   } else if (status === 404) {
     $('login-error').textContent = 'The admin login is off on this server.';
   } else {
-    $('login-error').textContent = 'Wrong password or code.';
+    $('login-error').textContent = totp ? 'Wrong password or code.' : 'Wrong password.';
   }
 });
 
@@ -255,6 +256,14 @@ $('add-generate').addEventListener('click', () => {
 });
 $('logout').addEventListener('click', async () => { await call('POST', 'logout', {}); show(false); });
 
-call('GET', 'session').then(({ status }) => show(status === 200));
+call('GET', 'session').then(({ status, data }) => {
+  // LAN mode: no code field
+  totp = data.totp !== false;
+  $('code-field').hidden = !totp;
+  $('code').required = totp;
+  show(status === 200);
+});
 loadHeader();
 setInterval(() => { if (!document.hidden) loadHeader(); }, 10000);
+  } else if (status === 403) {
+    $('login-error').textContent = 'This server takes admin logins only from its local network.';

@@ -90,9 +90,13 @@ pkgs.testers.runNixOSTest {
         networking.extraHosts = "${nodes.client.networking.primaryIPAddress} tracker-a.test tracker-b.test";
       };
 
+    # also the admin login in LAN mode: a password, no TOTP secret
     closed = {
       imports = [ ./module.nix ];
-      services.nfsuserver.enable = true;
+      services.nfsuserver = {
+        enable = true;
+        adminPasswordFile = "${adminHash}";
+      };
     };
 
     client =
@@ -263,6 +267,11 @@ pkgs.testers.runNixOSTest {
     with subtest("the admin logs in with password and code, resets passwords, reads the log and config"):
         server.succeed("journalctl -u nfsuserver -o cat | grep -Fx 'Admin login on.'")
         server.succeed("${admin} 127.0.0.1 '${adminPassword}' ${adminSecret}")
+
+    with subtest("without a TOTP secret the admin logs in with the password alone, from the LAN only"):
+        closed.wait_for_open_port(10990)
+        closed.succeed("journalctl -u nfsuserver -o cat | grep -Fx 'Admin login on in LAN mode: password only, from private addresses only.'")
+        closed.succeed("${admin} 127.0.0.1 '${adminPassword}' --lan")
 
     with subtest("nginx serves the pages and the API, and tells the server who the visitor is"):
         server.wait_for_open_port(80)

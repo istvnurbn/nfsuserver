@@ -2,9 +2,10 @@
 """Check the website's admin login and pages (JSON API, port 10990).
 
   admin.py SERVER PASSWORD SECRET
+  admin.py SERVER PASSWORD --lan
 
 PASSWORD is the admin password whose hash the server reads, SECRET its base32
-TOTP secret. The requests come from the address the server trusts as its
+TOTP secret; --lan checks a server without one (LAN mode). The requests come from the address the server trusts as its
 proxy, so X-Real-IP picks the visitor's address.
 """
 
@@ -51,7 +52,29 @@ def can_log_in(server, account, password):
     return auth(connect(server), account, password) == "auth"
 
 
+def lan(server, password):
+    """LAN mode: the password alone, and only from private addresses."""
+    status, _, body = call(server, "GET", "/api/admin/session")
+    expect((status, body.get("totp")), (401, False), "the page learns that no code is needed")
+    for ip in ("198.51.100.9", "172.32.0.1", "2001:db8::1", "::ffff:8.8.8.8"):
+        expect(call(server, "POST", "/api/admin/login", {"password": password}, ip=ip)[0], 403,
+               f"the right password from a public address ({ip})")
+    expect(call(server, "POST", "/api/admin/login", {"password": "wrong"}, ip="10.0.0.5")[0], 401,
+           "a wrong password from the LAN")
+    for ip in ("192.168.1.20", "10.1.2.3", "172.20.0.1", "127.0.0.1", "::1", "fd00::5", "fe80::1", "::ffff:192.168.1.1"):
+        status, cookie, _ = call(server, "POST", "/api/admin/login", {"password": password}, ip=ip)
+        expect(status, 200, f"the password alone from {ip}")
+    expect(("Secure" in cookie, "HttpOnly" in cookie), (False, True), "a cookie that works over plain HTTP")
+    session = cookie.split(";")[0]
+    expect(call(server, "GET", "/api/admin/session", cookie=session)[2], {"admin": True, "totp": False}, "the session")
+    lines = "".join(call(server, "GET", "/api/admin/log", cookie=session)[2]["lines"])
+    expect("Admin login refused from 198.51.100.9: LAN mode takes private addresses only." in lines, True,
+           "the refusal in the log")
+
+
 def main():
+    if sys.argv[3] == "--lan":
+        return lan(*sys.argv[1:3])
     server, password, secret = sys.argv[1:4]
     expect(totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 1), "287082", "the test's own TOTP (RFC 6238 at 59 s)")
 

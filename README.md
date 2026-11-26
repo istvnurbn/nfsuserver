@@ -130,6 +130,8 @@ qrencode -t ansiutf8 "otpauth://totp/NFSU:admin?issuer=NFSU&secret=$(cat admin-t
 
 Set `adminpasswordfile` and `admintotpfile` in `nfsu.conf` to them (on NixOS: `services.nfsuserver.adminPasswordFile` and `adminTotpFile`, as strings so they stay out of the Nix store). Logging in takes the password and the 6-digit code from the phone. Wrong tries slow down that visitor's address, doubling up to 15 minutes; the account never locks. A lost phone: write a new secret to `admin-totp`, restart the server and scan the new code.
 
+**LAN mode.** Leave `admintotpfile` empty (on NixOS: `adminTotpFile` unset) and the login asks for the password alone. It then accepts logins only from private addresses (10.x, 172.16–31.x, 192.168.x, loopback, link-local, fc00::/7) and works over plain HTTP. Use it only where the server sees each visitor's real address: behind a proxy or a Docker port forward that shows every visitor as one private address, the internet would count as the LAN. The server log names the address of every login and every refusal.
+
 ### Running the website
 
 **NixOS.** The module sets up nginx with a Let's Encrypt certificate:
