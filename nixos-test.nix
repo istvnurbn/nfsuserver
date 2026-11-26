@@ -22,6 +22,8 @@ let
   stress = "${pkgs.python3.interpreter} ${./tests}/stress.py";
   # moving between rooms, host-only game commands
   rooms = "${pkgs.python3.interpreter} ${./tests}/rooms.py";
+  # the JSON API for the website
+  api = "${pkgs.python3.interpreter} ${./tests}/api.py";
 in
 pkgs.testers.runNixOSTest {
   name = "nfsuserver";
@@ -124,6 +126,7 @@ pkgs.testers.runNixOSTest {
             "Verbose           0",
             "RegisterGlobal    1",
             "Trackers          tracker-a.test,http://tracker-b.test",
+            "ApiIP             127.0.0.1",
             "LogAllTraffic     0",
             "BanV1             1",
             "BanV2             0",
@@ -227,6 +230,10 @@ pkgs.testers.runNixOSTest {
 
     with subtest("a ranked race is saved: the win, the loss and the best laps"):
         server.succeed("${stats} 127.0.0.1 race")
+
+    with subtest("the JSON API lists status, races, the leaderboard and track records, on localhost only"):
+        server.succeed("${api} 127.0.0.1")
+        client.fail("socat -u TCP:server:10990,connect-timeout=2 -")
 
     with subtest("race reports that must not count are refused, a quit race does not decide the next"):
         server.succeed("${stats} 127.0.0.1 cheats")
