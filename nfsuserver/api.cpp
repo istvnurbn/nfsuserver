@@ -29,6 +29,9 @@
 #include "admin.h"
 #include <string>
 #include <map>
+#include <sstream>
+#include <algorithm>
+#include <netdb.h>
 
 extern void Log(char* log);
 extern bool running;
@@ -588,6 +591,158 @@ static void Admin(SOCKET s, const Request& r) {
 		Reply(s, "200 OK", out + "}");
 	}
 	else Reply(s, "404 Not Found", "{\"error\":\"not found\"}");
+}
+
+// --- the infoserver of nfs.onl's network rankings (statsport, usually 10880) ---
+// One request per connection, no terminator: "ping", "rank:<mode>" or
+// "perf:<track>". The answer, then the server closes. Rows are joined by "~",
+// fields by "|", as Redhair's infoserver.py (nfsuinfoserver) sends them; nfs.onl
+// finds the server through infocentral, which gets a PING every 60 s.
+
+std::string InfoAnswer(const std::string& request) {
+	if (request == "ping") return "pong";
+	std::string::size_type colon = request.find(':');
+	std::string command = request.substr(0, colon), arg = colon == std::string::npos ? "" : request.substr(colon + 1);
+	std::string out;
+	char row[200];
+	if (colon != std::string::npos && command == "rank") {
+		int mode;
+		for (mode = 4; mode >= 0 && arg != MODE_NAMES[mode]; mode--);
+		if (mode < 0) return "Error: Unrecognized request";
+		ClientConnections.mut.Lock();
+		std::vector<PlayerStat> ps(PS);
+		ClientConnections.mut.Unlock();
+		std::stable_sort(ps.begin(), ps.end(), ByRepIn(mode));
+		int n = 0;
+		for (size_t i = 0; i < ps.size() && n < 200; i++) {
+			const int* v = &ps[i].Rating_All + 7 * mode; // rating, wins, losses, disconnects, REP, opponents' REP and rating
+			if (v[1] + v[2] <= 0) continue; // never raced in this mode
+			snprintf(row, sizeof(row), "%s%.16s|%d|%d|%d|%d|%d|%d|%d", n++ ? "~" : "", ps[i].Name, v[0], v[1], v[2], v[3], v[4], v[5], v[6]);
+			out += row;
+		}
+		return out;
+	}
+	if (colon != std::string::npos && command == "perf" && !arg.empty() && arg.size() <= 4
+		&& arg.find_first_not_of("0123456789") == std::string::npos) {
+		int track = atoi(arg.c_str()), t;
+		for (t = 0; t < TRACK_COUNT && TRACKS[t] != track; t++);
+		if (t == TRACK_COUNT) return "Error: Unrecognized request";
+		std::vector<TrackRecord> rec(200);
+		ClientConnections.mut.Lock(); // the lobby uses the database under this lock too
+		int n = TrackRecordsTop(track, &rec[0], 200), k = 0;
+		ClientConnections.mut.Unlock();
+		for (int i = 0; i < n; i++) {
+			if (rec[i].score <= 0) continue;
+			snprintf(row, sizeof(row), "%s%s|%d|%d|%d", k++ ? "~" : "", rec[i].persona, rec[i].score, rec[i].car, rec[i].dir);
+			out += row;
+		}
+		return out;
+	}
+	return "Error: Unrecognized request";
+}
+
+static SOCKET InfoSocket = INVALID_SOCKET;
+static int InfoPort = 0;
+static std::string InfoCentrals;
+
+// shortcut: one request at a time, each limited to 5 s; a thread per client if this ever gets busy
+static threadfunc InfoThread(void*) {
+	for (;;) {
+		SOCKET s = accept(InfoSocket, NULL, NULL);
+		if (s == INVALID_SOCKET) {
+			Sleep(100);
+			continue;
+		}
+		timeval timeout = { 5, 0 };
+		setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+		setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+		char buf[1025];
+		int n = recv(s, buf, 1024, 0);
+		if (n > 0) {
+			std::string request(buf, n);
+			std::string::size_type from = request.find_first_not_of(" \t\r\n"), to = request.find_last_not_of(" \t\r\n");
+			std::string answer = InfoAnswer(from == std::string::npos ? "" : request.substr(from, to - from + 1));
+			send(s, answer.data(), answer.size(), 0);
+		}
+		closesocket(s);
+	}
+}
+
+// "PING <host> <port>": infocentral keys on the sender's address and keeps it 5 minutes
+static void PingCentral(const std::string& central) {
+	char log[256], msg[64];
+	std::string host = central, port = "10881";
+	std::string::size_type colon = central.rfind(':');
+	if (colon != std::string::npos) {
+		host = central.substr(0, colon);
+		port = central.substr(colon + 1);
+	}
+	addrinfo hints, *res = NULL;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	if (getaddrinfo(host.c_str(), port.c_str(), &hints, &res) != 0 || res == NULL) {
+		snprintf(log, sizeof(log), "[warn] Could not look up infocentral %.100s.\n", central.c_str());
+		Log(log);
+		return;
+	}
+	SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
+	if (s != INVALID_SOCKET) {
+		timeval timeout = { 10, 0 }; // on Linux SO_SNDTIMEO limits connect() too
+		setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+		setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+		if (connect(s, res->ai_addr, res->ai_addrlen) == 0) {
+			snprintf(msg, sizeof(msg), "PING 0.0.0.0 %d", InfoPort);
+			send(s, msg, strlen(msg), 0);
+		}
+		closesocket(s);
+	}
+	freeaddrinfo(res);
+}
+
+// shortcut: no "GG" on shutdown; infocentral drops the server 5 minutes after the last PING
+static threadfunc CentralThread(void*) {
+	for (;;) {
+		std::stringstream list(InfoCentrals);
+		std::string central;
+		while (std::getline(list, central, ',')) {
+			central.erase(std::remove_if(central.begin(), central.end(), ::isspace), central.end());
+			if (!central.empty()) PingCentral(central);
+		}
+		Sleep(60 * 1000);
+	}
+}
+
+void InfoStart(const char* ip, int port, const char* centrals) {
+	char log[256];
+	SOCKADDR_IN sin;
+	int yes = 1;
+	if (port <= 0) {
+		if (centrals[0] != '\0') Log((char*)"[warn] infocentral is set but statsport is not, so the server is not announced there.\n");
+		return;
+	}
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	InfoSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (InfoSocket == INVALID_SOCKET || inet_pton(AF_INET, ip[0] ? ip : "0.0.0.0", &sin.sin_addr) != 1
+		|| setsockopt(InfoSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) != 0
+		|| bind(InfoSocket, (SOCKADDR*)&sin, sizeof(sin)) != 0 || listen(InfoSocket, 20) != 0) {
+		snprintf(log, sizeof(log), "[error] Could not listen for stats requests on port %d, running without them.\n", port);
+		Log(log);
+		if (InfoSocket != INVALID_SOCKET) closesocket(InfoSocket);
+		return;
+	}
+	InfoPort = port;
+	InfoCentrals = centrals;
+	snprintf(log, sizeof(log), "Listening for stats requests (infoserver) on %s:%d TCP\n", ip[0] ? ip : "0.0.0.0", port);
+	Log(log);
+	_beginthread(InfoThread, 0, NULL);
+	if (centrals[0] != '\0') {
+		snprintf(log, sizeof(log), "Announcing the stats port to infocentral: %s\n", centrals);
+		Log(log);
+		_beginthread(CentralThread, 0, NULL);
+	}
 }
 
 // reads one request: the head up to 8 KiB, a body up to 4 KiB

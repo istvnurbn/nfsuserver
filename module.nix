@@ -24,7 +24,8 @@ let
     10901 # lobby: where a redirector (this one, or one in a launcher) sends the game
     10800 # server info: without it launchers show the server as offline, and the public list rejects it
     10980 # status (rooms and players), read by launchers such as NFSUServerChanger
-  ];
+  ]
+  ++ lib.optional (cfg.settings.statsport != null) cfg.settings.statsport; # rankings for nfs.onl
   udpPorts = [
     10800 # LAN discovery by launchers (answered to port 10801 of the sender)
   ];
@@ -55,6 +56,8 @@ let
     "trackers"
     "apiip"
     "apiproxyip"
+    "statsport"
+    "infocentral"
     "disabletimestamp"
     "verbose"
     "logalltraffic"
@@ -69,8 +72,12 @@ let
 
   render =
     value:
-    if lib.isBool value then
+    if value == null then
+      ""
+    else if lib.isBool value then
       (if value then "1" else "0")
+    else if lib.isInt value then
+      toString value
     else if lib.isList value then
       lib.concatStringsSep "," value
     else
@@ -294,6 +301,29 @@ in
             '';
           };
 
+          statsport = mkOption {
+            type = types.nullOr types.port;
+            default = null;
+            example = 10880;
+            description = ''
+              TCP port that answers rank and track record requests in the
+              infoserver protocol (usually 10880), for nfs.onl's network
+              rankings. {option}`services.nfsuserver.openFirewall` opens it.
+            '';
+          };
+
+          infocentral = mkOption {
+            type = types.listOf (types.strMatching "[A-Za-z0-9.-]+(:[0-9]+)?");
+            default = [ ];
+            example = [ "nfs.onl:10881" ];
+            description = ''
+              infocentral lists that get a PING for
+              {option}`services.nfsuserver.settings.statsport` every minute,
+              so that nfs.onl shows this server's rankings and track records.
+              Empty by default, so a private server stays unlisted.
+            '';
+          };
+
           disabletimestamp = mkBool true ''
             Do not prefix log lines with the time. On by default (unlike the
             sample `nfsu.conf`) because the journal records it already.
@@ -342,10 +372,15 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    warnings = lib.optional (cfg.settings.registerglobal && cfg.settings.trackers == [ ]) ''
-      services.nfsuserver.settings.registerglobal is on, but settings.trackers is
-      empty, so the server is not announced anywhere.
-    '';
+    warnings =
+      lib.optional (cfg.settings.registerglobal && cfg.settings.trackers == [ ]) ''
+        services.nfsuserver.settings.registerglobal is on, but settings.trackers is
+        empty, so the server is not announced anywhere.
+      ''
+      ++ lib.optional (cfg.settings.infocentral != [ ] && cfg.settings.statsport == null) ''
+        services.nfsuserver.settings.infocentral is set, but settings.statsport is
+        not, so the server is not announced there.
+      '';
 
     assertions =
       map (key: {

@@ -15,6 +15,7 @@ services:
       - "10800:10800"
       - "10800:10800/udp"
       - "10980:10980"
+      # - "10880:10880"   # with statsport = 10880 in docker/nfsu.conf (nfs.onl's rankings)
       # the JSON API (10990) stays on the web network, for Caddy only
     networks:
       - web

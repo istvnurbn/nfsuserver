@@ -24,6 +24,8 @@ let
   rooms = "${pkgs.python3.interpreter} ${./tests}/rooms.py";
   # the JSON API for the website
   api = "${pkgs.python3.interpreter} ${./tests}/api.py";
+  # the stats port for nfs.onl's rankings, checked against the JSON API
+  info = "${pkgs.python3.interpreter} ${./tests}/info.py";
   # its admin login; the script imports accounts.py
   admin = "${pkgs.python3.interpreter} ${./tests}/admin.py";
   adminPassword = "correct horse battery staple";
@@ -67,6 +69,8 @@ pkgs.testers.runNixOSTest {
             serverexternalip = "203.0.113.7";
             welcomemessage = "100% welcome";
             registerglobal = true;
+            statsport = 10880;
+            infocentral = [ "central.test:10881" ];
             trackers = [
               "tracker-a.test"
               "http://tracker-b.test"
@@ -87,7 +91,7 @@ pkgs.testers.runNixOSTest {
         };
 
         # The client stands in for both public server lists.
-        networking.extraHosts = "${nodes.client.networking.primaryIPAddress} tracker-a.test tracker-b.test";
+        networking.extraHosts = "${nodes.client.networking.primaryIPAddress} tracker-a.test tracker-b.test central.test";
       };
 
     # also the admin login in LAN mode: a password, no TOTP secret
@@ -102,7 +106,10 @@ pkgs.testers.runNixOSTest {
     client =
       { pkgs, ... }:
       {
-        networking.firewall.allowedTCPPorts = [ 80 ];
+        networking.firewall.allowedTCPPorts = [
+          80
+          10881
+        ];
         networking.firewall.allowedUDPPorts = [ 10801 ];
 
         systemd.services.fake-tracker =
@@ -116,6 +123,19 @@ pkgs.testers.runNixOSTest {
           {
             wantedBy = [ "multi-user.target" ];
             serviceConfig.ExecStart = "${pkgs.socat}/bin/socat TCP4-LISTEN:80,reuseaddr,fork EXEC:${answer}";
+          };
+
+        # infocentral: logs what the server sends, one line per connection
+        systemd.services.fake-central =
+          let
+            log = pkgs.writeShellScript "fake-central-log" ''
+              head -c 200 >> /tmp/central.log
+              echo >> /tmp/central.log
+            '';
+          in
+          {
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig.ExecStart = "${pkgs.socat}/bin/socat TCP4-LISTEN:10881,reuseaddr,fork EXEC:${log}";
           };
       };
   };
@@ -156,6 +176,8 @@ pkgs.testers.runNixOSTest {
             "RegisterGlobal    1",
             "Trackers          tracker-a.test,http://tracker-b.test",
             "ApiIP             127.0.0.1",
+            "StatsPort         10880",
+            "InfoCentral       central.test:10881",
             "LogAllTraffic     0",
             "BanV1             1",
             "BanV2             0",
@@ -263,6 +285,13 @@ pkgs.testers.runNixOSTest {
     with subtest("the JSON API lists status, races, the leaderboard and track records, on localhost only"):
         server.succeed("${api} 127.0.0.1")
         client.fail("socat -u TCP:server:10990,connect-timeout=2 -")
+
+    with subtest("the stats port answers ranks and track records for nfs.onl, and infocentral gets a PING"):
+        server.succeed("journalctl -u nfsuserver -o cat | grep -F 'Listening for stats requests (infoserver) on 0.0.0.0:10880 TCP'")
+        server.succeed("${info} 127.0.0.1")
+        pong = client.succeed("printf ping | socat -t 3 - TCP:server:10880")
+        assert pong == "pong", pong
+        client.wait_until_succeeds("grep -Fx 'PING 0.0.0.0 10880' /tmp/central.log", timeout=90)
 
     with subtest("the admin logs in with password and code, resets passwords, reads the log and config"):
         server.succeed("journalctl -u nfsuserver -o cat | grep -Fx 'Admin login on.'")

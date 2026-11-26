@@ -103,6 +103,7 @@ The server requires the following ports to be forwarded:
 | 10800 TCP | Server info for server lists |
 | 10800 UDP | Server discovery within a local network |
 | 10980 TCP | Status (rooms and players) for launchers such as NFSUServerChanger |
+| 10880 TCP | Rankings and track records for nfs.onl, only with `statsport` set (off by default) |
 
 Port 10990 TCP is the JSON API for the website (`apiip`, `127.0.0.1` by default). Don't forward it: a reverse proxy on the same host serves it with TLS.
 
