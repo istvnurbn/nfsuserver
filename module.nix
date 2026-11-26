@@ -53,6 +53,7 @@ let
     "rewritelogfile"
     "registerglobal"
     "trackers"
+    "apiip"
     "disabletimestamp"
     "verbose"
     "logalltraffic"
@@ -208,6 +209,18 @@ in
               is allowed. Launchers such as
               NFSUServerChanger read these lists. A tracker only lists servers
               it can reach on TCP port 10800.
+            '';
+          };
+
+          apiip = mkOption {
+            type = types.strMatching "(([0-9]{1,3}\\.){3}[0-9]{1,3})?";
+            default = "127.0.0.1";
+            description = ''
+              IPv4 address the JSON API for the website listens on, at TCP
+              port 10990; empty turns it off. It serves the status, races,
+              leaderboard and track records as public data over plain HTTP,
+              so only a reverse proxy on this host should reach it.
+              {option}`services.nfsuserver.openFirewall` does not open it.
             '';
           };
 

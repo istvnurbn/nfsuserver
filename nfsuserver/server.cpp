@@ -720,6 +720,7 @@ void GameClass::AddUser(UserClass* user, char* buffer) {
 }
 
 void GameClass::StartGame(char* buffer) {
+	working = true; // the race is on: the JSON API lists it as started
 	sprintf(buffer, "start game\n");
 
 	if (Verbose) Log(buffer);

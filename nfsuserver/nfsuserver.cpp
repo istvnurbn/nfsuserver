@@ -26,6 +26,8 @@ bool DisableTimeStamp;
 bool Verbose;
 bool RegisterGlobal;
 char Trackers[100] = ""; // comma separated host names of the server lists, from nfsu.conf
+char ApiIP[100] = "127.0.0.1"; // where the JSON API for the website listens, empty for none
+void ApiStart(const char* ip, const char* version); // api.cpp
 bool LogAllTraffic;
 
 bool BanV1;
@@ -1852,6 +1854,7 @@ bool InitServer(){
 	Verbose = readOptionBool("Verbose");
 	RegisterGlobal = readOptionBool("RegisterGlobal");
 	readOptionStr("Trackers", Trackers);
+	readOptionStr("ApiIP", ApiIP);
 	LogAllTraffic = readOptionBool("LogAllTraffic");
 	BanV1 = readOptionBool("BanV1");
 	BanV2 = readOptionBool("BanV2");
@@ -1932,6 +1935,7 @@ bool InitServer(){
 	sprintf(log, "Verbose           %d\n", Verbose);			Log(log);
 	sprintf(log, "RegisterGlobal    %d\n", RegisterGlobal);		Log(log);
 	sprintf(log, "Trackers          %s\n", Trackers);			Log(log);
+	sprintf(log, "ApiIP             %s\n", ApiIP);				Log(log);
 	sprintf(log, "LogAllTraffic     %d\n", LogAllTraffic);		Log(log);
 	sprintf(log, "BanV1             %d\n", BanV1);				Log(log);
 	sprintf(log, "BanV2             %d\n", BanV2);				Log(log);
@@ -2084,6 +2088,7 @@ bool InitServer(){
 	_beginthread(ClientReporter, 0, NULL);
 	_beginthread(ClientReporterTcp, 0, NULL);
 	_beginthread(StatThread, 0, NULL);
+	ApiStart(ApiIP, NFSU_LAN_VERSION);
 	if(RegisterGlobal && Trackers[0] == '\0')
 		Log("[warn] registerglobal is on, but trackers names no server list to announce to.\n");
 	if(RegisterGlobal)

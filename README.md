@@ -104,6 +104,8 @@ The server requires the following ports to be forwarded:
 | 10800 UDP | Server discovery within a local network |
 | 10980 TCP | Statistics for the scripts in `web/` |
 
+Port 10990 TCP is the JSON API for the website (`apiip`, `127.0.0.1` by default). Don't forward it: a reverse proxy on the same host serves it with TLS.
+
 The race itself is played peer to peer between the games of the players and does not pass through the server. For that the player who hosts needs port 3658 UDP, see [Client Configuration](#client-configuration). It is not a port of the server.
 
 ### Players in the network of the server
