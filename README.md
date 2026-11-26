@@ -106,6 +106,20 @@ The server requires the following ports to be forwarded:
 
 Port 10990 TCP is the JSON API for the website (`apiip`, `127.0.0.1` by default). Don't forward it: a reverse proxy on the same host serves it with TLS.
 
+### Admin login for the website
+
+The admin page (`site/admin.html`) resets players' passwords and shows the server log and `nfsu.conf`. It is off until both files exist:
+
+```sh
+mkpasswd -m yescrypt > admin-password        # asks for the password; use 16 characters or more
+head -c 20 /dev/urandom | base32 > admin-totp
+qrencode -t ansiutf8 "otpauth://totp/NFSU:admin?issuer=NFSU&secret=$(cat admin-totp)"   # scan with the phone
+```
+
+Set `adminpasswordfile` and `admintotpfile` in `nfsu.conf` to them (on NixOS: `services.nfsuserver.adminPasswordFile` and `adminTotpFile`, as strings so they stay out of the Nix store). Logging in takes the password and the 6-digit code from the phone. Wrong tries slow down that visitor's address, doubling up to 15 minutes; the account never locks. A lost phone: write a new secret to `admin-totp`, restart the server and scan the new code.
+
+The slowdown needs the visitor's address, so the reverse proxy has to set the `X-Real-IP` header (nginx: `proxy_set_header X-Real-IP $remote_addr;`, Caddy: `header_up X-Real-IP {remote_host}`). The server believes it only from `apiproxyip` (`127.0.0.1` by default).
+
 The race itself is played peer to peer between the games of the players and does not pass through the server. For that the player who hosts needs port 3658 UDP, see [Client Configuration](#client-configuration). It is not a port of the server.
 
 ### Players in the network of the server

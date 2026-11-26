@@ -23,6 +23,7 @@ UserClass::UserClass() {
 	memset(Port, 0, 10);
 	SelectedPerson = -1;
 	Idle = 0;
+	Deleted = false;
 };
 
 ServerClass::ServerClass() {
@@ -53,7 +54,7 @@ UserClass* UsersClass::UserFromUsername(char* username) {
 	tmp = First;
 
 	while (tmp != NULL) {
-		if ((strcmp(tmp->Username, username) == 0) || (strcmp(tmp->Personas[tmp->SelectedPerson], username) == 0)) {
+		if (!tmp->Deleted && ((strcmp(tmp->Username, username) == 0) || (strcmp(tmp->Personas[tmp->SelectedPerson], username) == 0))) {
 			return tmp;
 		}
 		tmp = tmp->Next;

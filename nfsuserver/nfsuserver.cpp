@@ -27,7 +27,11 @@ bool Verbose;
 bool RegisterGlobal;
 char Trackers[100] = ""; // comma separated host names of the server lists, from nfsu.conf
 char ApiIP[100] = "127.0.0.1"; // where the JSON API for the website listens, empty for none
+char ApiProxyIP[100] = "127.0.0.1"; // the proxy whose X-Real-IP the API believes
+char AdminPasswordFile[100] = "", AdminTotpFile[100] = ""; // both set: the admin login is on
 void ApiStart(const char* ip, const char* version); // api.cpp
+bool AdminStart(const char* passwordFile, const char* totpFile); // admin.cpp
+void LogKeep(const char* line);
 bool LogAllTraffic;
 
 bool BanV1;
@@ -161,6 +165,8 @@ void Log( char *log ){
     }else{
         snprintf(logtemp, sizeof(logtemp), "%s", log);
     }
+
+    LogKeep(logtemp); // for the admin page
 
     if (EnableLogScreen)
         fputs(logtemp, stdout);
@@ -1704,8 +1710,8 @@ threadfunc Maintenance(void *Dummy){
 		user=Server.Users.First;
 		while(user!=NULL){
 			user->Idle++;
-			if((user->Idle>60*45)&&(user->Connection==NULL)){
-				Log("Removing user due to 45 min timeout\n");
+			if((user->Idle>60*45 || user->Deleted)&&(user->Connection==NULL)){
+				if (!user->Deleted) Log("Removing user due to 45 min timeout\n");
 				t=user->Next;
 				Server.Users.RemoveUser(user);
 				free(user);
@@ -1855,6 +1861,9 @@ bool InitServer(){
 	RegisterGlobal = readOptionBool("RegisterGlobal");
 	readOptionStr("Trackers", Trackers);
 	readOptionStr("ApiIP", ApiIP);
+	readOptionStr("ApiProxyIP", ApiProxyIP);
+	readOptionStr("AdminPasswordFile", AdminPasswordFile);
+	readOptionStr("AdminTotpFile", AdminTotpFile);
 	LogAllTraffic = readOptionBool("LogAllTraffic");
 	BanV1 = readOptionBool("BanV1");
 	BanV2 = readOptionBool("BanV2");
@@ -1936,6 +1945,7 @@ bool InitServer(){
 	sprintf(log, "RegisterGlobal    %d\n", RegisterGlobal);		Log(log);
 	sprintf(log, "Trackers          %s\n", Trackers);			Log(log);
 	sprintf(log, "ApiIP             %s\n", ApiIP);				Log(log);
+	sprintf(log, "ApiProxyIP        %s\n", ApiProxyIP);			Log(log);
 	sprintf(log, "LogAllTraffic     %d\n", LogAllTraffic);		Log(log);
 	sprintf(log, "BanV1             %d\n", BanV1);				Log(log);
 	sprintf(log, "BanV2             %d\n", BanV2);				Log(log);
@@ -2088,6 +2098,7 @@ bool InitServer(){
 	_beginthread(ClientReporter, 0, NULL);
 	_beginthread(ClientReporterTcp, 0, NULL);
 	_beginthread(StatThread, 0, NULL);
+	if (ApiIP[0] != '\0') AdminStart(AdminPasswordFile, AdminTotpFile);
 	ApiStart(ApiIP, NFSU_LAN_VERSION);
 	if(RegisterGlobal && Trackers[0] == '\0')
 		Log("[warn] registerglobal is on, but trackers names no server list to announce to.\n");

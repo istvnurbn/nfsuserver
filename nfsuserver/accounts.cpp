@@ -325,6 +325,56 @@ int AccountCreate( const char * name, const char * pass ) {
 	return rc == SQLITE_CONSTRAINT ? ACC_DUPL : ACC_ERROR;
 }
 
+// for the admin page: every account with its personas, by name
+bool AccountList( std::vector<AccountInfo> & out ) {
+	sqlite3_stmt * st = NULL;
+	int rc = Run (&st, "SELECT a.name, a.created, a.last_login, (SELECT group_concat(p.name, ',') FROM personas p WHERE p.account = a.name)"
+		" FROM accounts a ORDER BY a.name COLLATE NOCASE");
+	for (; rc == SQLITE_ROW; rc = sqlite3_step (st)) {
+		AccountInfo a;
+		const char * v;
+		a.name = (const char *)sqlite3_column_text (st, 0);
+		if ((v = (const char *)sqlite3_column_text (st, 1)) != NULL) a.created = v;
+		if ((v = (const char *)sqlite3_column_text (st, 2)) != NULL) a.lastLogin = v;
+		if ((v = (const char *)sqlite3_column_text (st, 3)) != NULL) a.personas = v;
+		out.push_back (a);
+	}
+	sqlite3_finalize (st);
+	return rc == SQLITE_DONE;
+}
+
+// for the admin page: name receives the account as stored, personas what it had.
+// Its personas, their stats and track records go with it (ON DELETE CASCADE).
+int AccountDelete( const char * given, char * name, char personas[4][100] ) {
+	sqlite3_stmt * st = NULL;
+	int rc = Run (&st, "SELECT name FROM accounts WHERE name = ?", given);
+	if (rc != SQLITE_ROW) {
+		sqlite3_finalize (st);
+		return rc == SQLITE_DONE ? ACC_NOUSER : ACC_ERROR;
+	}
+	snprintf (name, 100, "%s", (const char *)sqlite3_column_text (st, 0));
+	sqlite3_finalize (st);
+	if (!LoadPersonas (name, personas)) return ACC_ERROR;
+	if (Exec ("DELETE FROM accounts WHERE name = ?", name) != SQLITE_DONE) return ACC_ERROR;
+	std::string account (name);
+	for (size_t i = 0; i < account.size (); i++) account[i] = (char)tolower ((unsigned char)account[i]);
+	accountStrikes.erase (account);
+	return ACC_OK;
+}
+
+// for the admin page; also lifts a lock from wrong passwords
+int AccountSetPassword( const char * name, const char * pass ) {
+	char hash[128];
+	if (!PassValid (pass)) return ACC_BADPASS;
+	if (!Hash (pass, hash, sizeof (hash))) return ACC_ERROR;
+	if (Exec ("UPDATE accounts SET password_hash = ? WHERE name = ?", hash, name) != SQLITE_DONE) return ACC_ERROR;
+	if (sqlite3_changes (db) == 0) return ACC_NOUSER;
+	std::string account (name);
+	for (size_t i = 0; i < account.size (); i++) account[i] = (char)tolower ((unsigned char)account[i]);
+	accountStrikes.erase (account);
+	return ACC_OK;
+}
+
 int PersonaCreate( const char * account, const char * persona ) {
 	sqlite3_stmt * st;
 	Run (&st, "SELECT count(*) FROM personas WHERE account = ?", account);

@@ -1,6 +1,9 @@
 #ifndef ACCOUNTS_H
 #define ACCOUNTS_H
 
+#include <string>
+#include <vector>
+
 // Accounts, personas, stats and track records live in an SQLite database
 // (nfsu.db in the working directory). Name rules follow the game's own messages: account names 4-16,
 // personas 3-12, passwords 4-16 characters.
@@ -19,6 +22,11 @@ bool DecodePass( const char * field, char * out, size_t size );
 // personas up to 4 names
 int AccountLogin( const char * given, const char * pass, const char * ip, char * name, char personas[4][100] );
 int AccountCreate( const char * name, const char * pass );
+int AccountSetPassword( const char * name, const char * pass );
+int AccountDelete( const char * given, char * name, char personas[4][100] );
+// created and lastLogin as SQLite writes them (UTC), personas comma separated
+struct AccountInfo { std::string name, created, lastLogin, personas; };
+bool AccountList( std::vector<AccountInfo> & out );
 int PersonaCreate( const char * account, const char * persona );
 bool PersonaDelete( const char * account, const char * persona );
 bool LoadPersonas( const char * account, char personas[4][100] );

@@ -54,6 +54,7 @@ let
     "registerglobal"
     "trackers"
     "apiip"
+    "apiproxyip"
     "disabletimestamp"
     "verbose"
     "logalltraffic"
@@ -77,8 +78,14 @@ let
 
   confLine = key: "${key} = ${render cfg.settings.${key}}";
 
+  # systemd hands the admin secrets to the service here (LoadCredential)
+  credentials = "/run/credentials/nfsuserver.service";
+  adminOn = cfg.adminPasswordFile != null;
+
   configFile = pkgs.writeText "nfsu.conf" (
     lib.concatMapStrings (key: confLine key + "\n") settingsOrder
+    + "adminpasswordfile = ${lib.optionalString adminOn "${credentials}/admin-password"}\n"
+    + "admintotpfile = ${lib.optionalString adminOn "${credentials}/admin-totp"}\n"
   );
   newsFile = pkgs.writeText "news.txt" cfg.news;
 
@@ -106,6 +113,31 @@ in
       description = ''
         Open the ports of the server in the firewall: TCP 10900, 10901, 10800
         and 10980, and UDP 10800.
+      '';
+    };
+
+    adminPasswordFile = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "/run/secrets/nfsu-admin-password";
+      description = ''
+        File with the crypt hash of the website's admin password, made with
+        `mkpasswd -m yescrypt`. Together with
+        {option}`services.nfsuserver.adminTotpFile` it turns the admin login
+        of the JSON API on. The service reads it as a systemd credential, so it
+        can stay readable by root only. Give it as a string: a Nix path would
+        be copied into the world-readable store.
+      '';
+    };
+
+    adminTotpFile = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "/run/secrets/nfsu-admin-totp";
+      description = ''
+        File with the base32 secret of the admin's authenticator app (TOTP),
+        for example from `head -c 20 /dev/urandom | base32`. To change phones,
+        put a new secret in it and restart the service.
       '';
     };
 
@@ -224,6 +256,16 @@ in
             '';
           };
 
+          apiproxyip = mkOption {
+            type = types.strMatching "([0-9]{1,3}\\.){3}[0-9]{1,3}";
+            default = "127.0.0.1";
+            description = ''
+              Address of the reverse proxy in front of the JSON API. Only its
+              `X-Real-IP` header is believed, which the admin login needs to
+              slow down guessing per visitor.
+            '';
+          };
+
           disabletimestamp = mkBool true ''
             Do not prefix log lines with the time. On by default (unlike the
             sample `nfsu.conf`) because the journal records it already.
@@ -287,6 +329,10 @@ in
       }) settingsOrder
       ++ [
         {
+          assertion = (cfg.adminPasswordFile == null) == (cfg.adminTotpFile == null);
+          message = "services.nfsuserver: set both adminPasswordFile and adminTotpFile, or neither.";
+        }
+        {
           assertion = lib.stringLength cfg.news <= 1000;
           message = ''
             services.nfsuserver.news is longer than 1000 bytes. The server sends the
@@ -321,6 +367,10 @@ in
         StateDirectoryMode = "0700";
         UMask = "0077";
         DynamicUser = true;
+        LoadCredential = lib.optionals adminOn [
+          "admin-password:${cfg.adminPasswordFile}"
+          "admin-totp:${cfg.adminTotpFile}"
+        ];
 
         # It has no way to recover from errors, and input it does not expect
         # tends to crash it. Accounts and statistics are written to disk as

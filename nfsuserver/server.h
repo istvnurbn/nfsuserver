@@ -111,6 +111,7 @@ public:
 	UserClass* Next;
 	RoomClass* CurrentRoom;
 	int Idle;
+	bool Deleted; // the admin deleted the account: logins must not find it, Maintenance drops it once offline
 };
 
 class UsersClass {

@@ -6,11 +6,24 @@
 //   GET /api/races                      games with track, laps, players and cars
 //   GET /api/leaderboard?mode=circuit   top 100 by REP like the game (all, circuit, sprint, drag, drift)
 //   GET /api/records                    best 10 on every track
+//
+// Admin (only with adminpasswordfile and admintotpfile set; POSTs take JSON):
+//   POST /api/admin/login     {"password", "code"} sets the session cookie
+//   POST /api/admin/logout
+//   GET  /api/admin/session   200 while logged in, else 401
+//   GET  /api/admin/accounts  every account with its personas, created and last login
+//   POST /api/admin/accounts  {"account", "password"} adds a player; an empty password makes one up and returns it
+//   POST /api/admin/password  {"account", "password"}: an empty password makes one up and returns it
+//   POST /api/admin/delete    {"account"} removes it with its personas, stats and track records
+//   GET  /api/admin/log       the last 500 log lines
+//   GET  /api/admin/config    nfsu.conf
 
 #include "win_nix.h"
 #include "objects.h"
 #include "accounts.h"
+#include "admin.h"
 #include <string>
+#include <map>
 
 extern void Log(char* log);
 extern bool running;
@@ -19,6 +32,8 @@ extern ConnectionsClass ClientConnections;
 extern ServerClass Server;
 extern SessionsClass Sessions;
 extern std::vector<PlayerStat> PS;
+
+extern char ApiProxyIP[100];
 
 static SOCKET ApiSocket = INVALID_SOCKET;
 static const char* ApiVersion = "";
@@ -196,45 +211,323 @@ static std::string Records() {
 	return out + "]}";
 }
 
-static void Reply(SOCKET s, const char* status, const std::string& body) {
+struct Request {
+	std::string method, path, query, headers, body, ip;
+	// a header's value, or "" (headers is the block after the request line, lines start with \r\n)
+	std::string Header(const char* name) const {
+		std::string lower(headers), key = std::string("\r\n") + name + ":";
+		for (size_t i = 0; i < lower.size(); i++) lower[i] = (char)tolower((unsigned char)lower[i]);
+		for (size_t i = 0; i < key.size(); i++) key[i] = (char)tolower((unsigned char)key[i]);
+		std::string::size_type at = lower.find(key);
+		if (at == std::string::npos) return "";
+		std::string::size_type from = headers.find_first_not_of(" \t", at + key.size());
+		std::string::size_type to = headers.find("\r\n", at + key.size());
+		return from == std::string::npos || from >= to ? "" : headers.substr(from, to - from);
+	}
+	std::string Cookie(const char* name) const {
+		std::string c = "; " + Header("Cookie") + ";", key = std::string("; ") + name + "=";
+		std::string::size_type at = c.find(key);
+		if (at == std::string::npos) return "";
+		at += key.size();
+		return c.substr(at, c.find(';', at) - at);
+	}
+};
+
+// A flat JSON object of strings: {"a": "x", "b": "y"}. Anything else fails.
+static bool JsonStrings(const std::string& s, std::map<std::string, std::string>& out) {
+	size_t i = 0;
+	struct P {
+		static void Space(const std::string& s, size_t& i) { while (i < s.size() && isspace((unsigned char)s[i])) i++; }
+		static bool String(const std::string& s, size_t& i, std::string& v) {
+			if (i >= s.size() || s[i] != '"') return false;
+			v.clear();
+			for (i++; i < s.size() && s[i] != '"'; i++) {
+				unsigned char c = (unsigned char)s[i];
+				if (c < 0x20) return false;
+				if (c != '\\') { v += (char)c; continue; }
+				if (++i >= s.size()) return false;
+				switch (s[i]) {
+				case '"': case '\\': case '/': v += s[i]; break;
+				case 'n': v += '\n'; break;
+				case 't': v += '\t'; break;
+				case 'u': {
+					if (i + 4 >= s.size()) return false;
+					long u = strtol(s.substr(i + 1, 4).c_str(), NULL, 16);
+					v += u > 0 && u < 0x80 ? (char)u : '?'; // names and passwords are ASCII
+					i += 4;
+					break;
+				}
+				default: return false;
+				}
+			}
+			if (i >= s.size()) return false;
+			i++;
+			return true;
+		}
+	};
+	P::Space(s, i);
+	if (i >= s.size() || s[i++] != '{') return false;
+	P::Space(s, i);
+	if (i < s.size() && s[i] == '}') return true;
+	for (;;) {
+		std::string k, v;
+		P::Space(s, i);
+		if (!P::String(s, i, k)) return false;
+		P::Space(s, i);
+		if (i >= s.size() || s[i++] != ':') return false;
+		P::Space(s, i);
+		if (!P::String(s, i, v)) return false;
+		out[k] = v;
+		P::Space(s, i);
+		if (i < s.size() && s[i] == ',') { i++; continue; }
+		return i < s.size() && s[i] == '}';
+	}
+}
+
+static void Reply(SOCKET s, const char* status, const std::string& body, const std::string& extra = "") {
 	char head[256];
 	snprintf(head, sizeof(head), "HTTP/1.1 %s\r\nContent-Type: application/json\r\nContent-Length: %lu\r\n"
-		"Cache-Control: no-store\r\nConnection: close\r\n\r\n", status, (unsigned long)body.size());
-	std::string all = std::string(head) + body;
+		"Cache-Control: no-store\r\nConnection: close\r\n", status, (unsigned long)body.size());
+	std::string all = std::string(head) + extra + "\r\n" + body;
 	send(s, all.data(), all.size(), 0);
 }
 
-static void Handle(SOCKET s) {
-	char buf[4096];
-	size_t len = 0;
-	int n;
-	// the request line and headers; a body is never needed
-	while (len < sizeof(buf) - 1 && (n = recv(s, buf + len, sizeof(buf) - 1 - len, 0)) > 0) {
-		len += n;
-		buf[len] = 0;
-		if (strstr(buf, "\r\n\r\n") != NULL) break;
+static const char* const SESSION_COOKIE = "nfsu_admin";
+
+static void Admin(SOCKET s, const Request& r) {
+	char log[256];
+	std::map<std::string, std::string> in;
+	std::string action = r.path.substr(strlen("/api/admin/"));
+	bool post = r.method == "POST";
+	if (!AdminEnabled()) {
+		Reply(s, "404 Not Found", "{\"error\":\"not found\"}");
+		return;
 	}
-	buf[len] = 0;
-	char method[8], target[256];
-	if (sscanf(buf, "%7s %255s HTTP/1.", method, target) != 2) {
+	if (post && (r.Header("Content-Type").compare(0, 16, "application/json") != 0 || !JsonStrings(r.body, in))) {
+		// a form on another site can't send JSON without asking first
+		Reply(s, "415 Unsupported Media Type", "{\"error\":\"send a JSON object of strings\"}");
+		return;
+	}
+	if (action == "login" && post) {
+		std::string token;
+		int retry = 0;
+		int rc = AdminLogin(r.ip, in["password"], in["code"], token, retry);
+		if (rc == ADMIN_WAIT) {
+			char body[64], extra[48];
+			snprintf(body, sizeof(body), "{\"error\":\"wait\",\"retry\":%d}", retry);
+			snprintf(extra, sizeof(extra), "Retry-After: %d\r\n", retry);
+			Reply(s, "429 Too Many Requests", body, extra);
+		} else if (rc == ADMIN_WRONG) {
+			snprintf(log, sizeof(log), "Admin login failed from %s.\n", r.ip.c_str());
+			Log(log);
+			Reply(s, "401 Unauthorized", "{\"error\":\"wrong password or code\"}");
+		} else {
+			snprintf(log, sizeof(log), "Admin logged in from %s.\n", r.ip.c_str());
+			Log(log);
+			Reply(s, "200 OK", "{\"admin\":true}", std::string("Set-Cookie: ") + SESSION_COOKIE + "=" + token
+				+ "; Path=/api/admin; Max-Age=43200; HttpOnly; Secure; SameSite=Strict\r\n");
+		}
+		return;
+	}
+	std::string token = r.Cookie(SESSION_COOKIE);
+	if (!AdminSession(token)) {
+		Reply(s, "401 Unauthorized", "{\"error\":\"log in first\"}");
+		return;
+	}
+	if (action == "session" && !post) Reply(s, "200 OK", "{\"admin\":true}");
+	else if (action == "logout" && post) {
+		AdminLogout(token);
+		Reply(s, "200 OK", "{\"admin\":false}", std::string("Set-Cookie: ") + SESSION_COOKIE
+			+ "=; Path=/api/admin; Max-Age=0; HttpOnly; Secure; SameSite=Strict\r\n");
+	}
+	else if (action == "password" && post) {
+		std::string account = in["account"], password = in["password"];
+		bool made = password.empty();
+		if (made) password = RandomPassword();
+		ClientConnections.mut.Lock(); // the lobby uses the database under this lock too
+		int rc = AccountSetPassword(account.c_str(), password.c_str());
+		ClientConnections.mut.Unlock();
+		if (rc == ACC_NOUSER) Reply(s, "404 Not Found", "{\"error\":\"no such account\"}");
+		else if (rc == ACC_BADPASS) Reply(s, "400 Bad Request", "{\"error\":\"passwords are 4-16 letters and digits\"}");
+		else if (rc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not save the password\"}");
+		else {
+			snprintf(log, sizeof(log), "Admin set a new password for account %.100s.\n", account.c_str());
+			Log(log);
+			std::string out = "{\"account\":";
+			Str(out, account.c_str());
+			if (made) { out += ",\"password\":"; Str(out, password.c_str()); }
+			Reply(s, "200 OK", out + "}");
+		}
+	}
+	else if (action == "accounts" && !post) {
+		std::vector<AccountInfo> list;
+		ClientConnections.mut.Lock();
+		bool ok = AccountList(list);
+		ClientConnections.mut.Unlock();
+		if (!ok) {
+			Reply(s, "500 Internal Server Error", "{\"error\":\"could not read the accounts\"}");
+			return;
+		}
+		std::string out = "{\"accounts\":[";
+		for (size_t i = 0; i < list.size(); i++) {
+			out += i ? ",{\"account\":" : "{\"account\":";
+			Str(out, list[i].name.c_str());
+			out += ",\"personas\":[";
+			std::string::size_type from = 0, to;
+			while (!list[i].personas.empty() && from <= list[i].personas.size()) {
+				to = list[i].personas.find(',', from);
+				if (to == std::string::npos) to = list[i].personas.size();
+				if (from) out += ",";
+				Str(out, list[i].personas.substr(from, to - from).c_str());
+				from = to + 1;
+			}
+			out += "],\"created\":";
+			Str(out, list[i].created.c_str());
+			out += ",\"last_login\":";
+			if (list[i].lastLogin.empty()) out += "null"; else Str(out, list[i].lastLogin.c_str());
+			out += "}";
+		}
+		Reply(s, "200 OK", out + "]}");
+	}
+	else if (action == "accounts" && post) {
+		std::string account = in["account"], password = in["password"];
+		bool made = password.empty();
+		if (made) password = RandomPassword();
+		if (!NameValid(account.c_str(), 4, 16)) {
+			Reply(s, "400 Bad Request", "{\"error\":\"account names are 4-16 letters and digits\"}");
+			return;
+		}
+		ClientConnections.mut.Lock();
+		int rc = AccountCreate(account.c_str(), password.c_str());
+		ClientConnections.mut.Unlock();
+		if (rc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that account exists already\"}");
+		else if (rc == ACC_BADPASS) Reply(s, "400 Bad Request", "{\"error\":\"passwords are 4-16 letters and digits\"}");
+		else if (rc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not add the account\"}");
+		else {
+			snprintf(log, sizeof(log), "Admin added account %.100s.\n", account.c_str());
+			Log(log);
+			std::string out = "{\"account\":";
+			Str(out, account.c_str());
+			if (made) { out += ",\"password\":"; Str(out, password.c_str()); }
+			Reply(s, "200 OK", out + "}");
+		}
+	}
+	else if (action == "delete" && post) {
+		char name[100], personas[4][100];
+		std::string gone;
+		ClientConnections.mut.Lock();
+		int rc = AccountDelete(in["account"].c_str(), name, personas);
+		if (rc == ACC_OK) {
+			for (int i = 0; i < 4 && personas[i][0]; i++) {
+				std::vector<PlayerStat>::iterator it = std::find(PS.begin(), PS.end(), personas[i]);
+				if (it != PS.end()) PS.erase(it); // off the rank lists now, not after a restart
+				gone += (i ? ", " : "") + std::string(personas[i]);
+			}
+			// a new account of that name must not find this player in memory, with these personas
+			for (UserClass* u = Server.Users.First, *next; u != NULL; u = next) {
+				next = u->Next;
+				if (strcmp(u->Username, name) != 0) continue;
+				if (u->Connection == NULL) { // offline: drop it now, as Maintenance does after 45 minutes
+					Server.Users.RemoveUser(u);
+					free(u);
+				} else { // online: disconnect; Maintenance drops it once the connection is closed
+					u->Connection->Abort = true;
+					u->Deleted = true;
+				}
+			}
+		}
+		ClientConnections.mut.Unlock();
+		if (rc == ACC_NOUSER) Reply(s, "404 Not Found", "{\"error\":\"no such account\"}");
+		else if (rc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not delete the account\"}");
+		else {
+			snprintf(log, sizeof(log), "Admin deleted account %s (personas: %s).\n", name, gone.empty() ? "none" : gone.c_str());
+			Log(log);
+			std::string out = "{\"account\":";
+			Str(out, name);
+			Reply(s, "200 OK", out + "}");
+		}
+	}
+	else if (action == "log" && !post) {
+		std::vector<std::string> lines = LogLines();
+		std::string out = "{\"lines\":[";
+		for (size_t i = 0; i < lines.size(); i++) {
+			if (i) out += ",";
+			Str(out, lines[i].c_str());
+		}
+		Reply(s, "200 OK", out + "]}");
+	}
+	else if (action == "config" && !post) {
+		std::string text;
+		FILE* f = fopen("nfsu.conf", "r");
+		char buf[1024];
+		size_t n;
+		while (f != NULL && (n = fread(buf, 1, sizeof(buf), f)) > 0 && text.size() < 65536) text.append(buf, n);
+		if (f != NULL) fclose(f);
+		std::string out = "{\"text\":";
+		Str(out, text.c_str());
+		Reply(s, "200 OK", out + "}");
+	}
+	else Reply(s, "404 Not Found", "{\"error\":\"not found\"}");
+}
+
+// reads one request: the head up to 8 KiB, a body up to 4 KiB
+static bool Read(SOCKET s, Request& r) {
+	std::string data;
+	char buf[2048];
+	int n;
+	std::string::size_type end;
+	while ((end = data.find("\r\n\r\n")) == std::string::npos) {
+		if (data.size() > 8192 || (n = recv(s, buf, sizeof(buf), 0)) <= 0) return false;
+		data.append(buf, n);
+	}
+	std::string::size_type line = data.find("\r\n");
+	std::string first = data.substr(0, line);
+	r.headers = data.substr(line, end + 2 - line);
+	r.body = data.substr(end + 4);
+	std::string::size_type a = first.find(' '), b = first.find(' ', a + 1);
+	if (a == std::string::npos || b == std::string::npos || first.compare(b + 1, 7, "HTTP/1.") != 0) return false;
+	r.method = first.substr(0, a);
+	r.path = first.substr(a + 1, b - a - 1);
+	std::string::size_type q = r.path.find('?');
+	if (q != std::string::npos) {
+		r.query = r.path.substr(q + 1);
+		r.path.erase(q);
+	}
+	long length = atol(r.Header("Content-Length").c_str());
+	if (length < 0 || length > 4096) return false;
+	while ((long)r.body.size() < length) {
+		if ((n = recv(s, buf, sizeof(buf), 0)) <= 0) return false;
+		r.body.append(buf, n);
+	}
+	r.body.erase(length);
+	return true;
+}
+
+static void Handle(SOCKET s, const char* peer) {
+	Request r;
+	if (!Read(s, r)) {
 		Reply(s, "400 Bad Request", "{\"error\":\"bad request\"}");
 		return;
 	}
-	if (strcmp(method, "GET") != 0) {
+	// the proxy says who the visitor is; nobody else may
+	std::string real = r.Header("X-Real-IP");
+	r.ip = strcmp(peer, ApiProxyIP) == 0 && !real.empty() ? real.substr(0, 45) : peer;
+
+	if (r.path.compare(0, 11, "/api/admin/") == 0) {
+		Admin(s, r);
+		return;
+	}
+	if (r.method != "GET") {
 		Reply(s, "405 Method Not Allowed", "{\"error\":\"only GET\"}");
 		return;
 	}
-	char* query = strchr(target, '?');
-	if (query != NULL) *query++ = 0;
-
-	if (strcmp(target, "/api/status") == 0) Reply(s, "200 OK", Status());
-	else if (strcmp(target, "/api/races") == 0) Reply(s, "200 OK", Races());
-	else if (strcmp(target, "/api/records") == 0) Reply(s, "200 OK", Records());
-	else if (strcmp(target, "/api/leaderboard") == 0) {
+	if (r.path == "/api/status") Reply(s, "200 OK", Status());
+	else if (r.path == "/api/races") Reply(s, "200 OK", Races());
+	else if (r.path == "/api/records") Reply(s, "200 OK", Records());
+	else if (r.path == "/api/leaderboard") {
 		int mode = 0;
-		if (query != NULL && strncmp(query, "mode=", 5) == 0) {
-			for (mode = 4; mode >= 0 && strcmp(query + 5, MODE_NAMES[mode]) != 0; mode--);
-		}
+		if (r.query.compare(0, 5, "mode=") == 0)
+			for (mode = 4; mode >= 0 && r.query.substr(5) != MODE_NAMES[mode]; mode--);
 		if (mode < 0) Reply(s, "400 Bad Request", "{\"error\":\"mode is all, circuit, sprint, drag or drift\"}");
 		else Reply(s, "200 OK", Leaderboard(mode));
 	}
@@ -245,14 +538,18 @@ static void Handle(SOCKET s) {
 static threadfunc ApiThread(void*) {
 	timeval timeout = { 5, 0 };
 	while (running) {
-		SOCKET s = accept(ApiSocket, NULL, NULL);
+		SOCKADDR_IN from;
+		socklen_t len = sizeof(from);
+		SOCKET s = accept(ApiSocket, (SOCKADDR*)&from, &len);
 		if (s == INVALID_SOCKET) {
 			Sleep(100); // see AcceptThread: don't spin when accept keeps failing
 			continue;
 		}
+		char peer[INET_ADDRSTRLEN] = "";
+		inet_ntop(AF_INET, &from.sin_addr, peer, sizeof(peer));
 		setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 		setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-		Handle(s);
+		Handle(s, peer);
 		closesocket(s);
 	}
 	RETURNFROMTHREAD;
