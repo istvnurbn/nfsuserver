@@ -17,10 +17,27 @@ async function call(method, path, body) {
   return { status: r.status, data };
 }
 
+// the header, as on the public pages: server name and players online
+async function loadHeader() {
+  let s = null;
+  try {
+    const r = await fetch('/api/status', { cache: 'no-store' });
+    if (r.ok) s = await r.json();
+  } catch (e) { /* offline */ }
+  if (s) {
+    $('server-name').textContent = s.name;
+    document.title = 'Admin · ' + s.name;
+  }
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  dot.setAttribute('aria-hidden', 'true');
+  $('online').classList.toggle('down', !s);
+  $('online').replaceChildren(dot, s ? s.players + (s.players === 1 ? ' player online' : ' players online') : 'Offline');
+}
+
 function show(loggedIn) {
   $('login').hidden = loggedIn;
   $('panel').hidden = !loggedIn;
-  $('logout').hidden = !loggedIn;
   clearInterval(timer);
   if (loggedIn) {
     loadPlayers();
@@ -36,7 +53,8 @@ function show(loggedIn) {
 const when = (s) => (s ? new Date(s.replace(' ', 'T') + 'Z').toLocaleString() : 'never');
 
 let players = [];
-let open = null; // the account whose password form is showing
+let open = null;      // the account whose row is open
+let mode = 'actions'; // what that row shows: actions, password or delete
 
 async function loadPlayers() {
   const { status, data } = await call('GET', 'accounts');
@@ -45,43 +63,70 @@ async function loadPlayers() {
   renderPlayers();
 }
 
-function cell(text) {
+function cell(text, className) {
   const td = document.createElement('td');
   td.textContent = text;
+  if (className) td.className = className;
   return td;
 }
 
-function passwordRow(account) {
+function button(text, className, onClick, type) {
+  const b = document.createElement('button');
+  b.type = type || 'button';
+  if (className) b.className = className;
+  b.textContent = text;
+  if (onClick) b.addEventListener('click', onClick);
+  return b;
+}
+
+function setMode(m) {
+  mode = m;
+  renderPlayers();
+  // the field to type in; Cancel when deleting, so Enter alone deletes nobody
+  const target = document.querySelector(m === 'password' ? 'tr.detail input' : m === 'delete' ? 'tr.detail .cancel' : 'tr.detail button');
+  if (target) target.focus();
+}
+
+function detailRow(a) {
   const form = document.createElement('form');
-  form.className = 'row';
-  const id = 'pw-' + account;
-  const box = document.createElement('div');
-  const label = document.createElement('label');
-  label.htmlFor = id;
-  label.textContent = 'New password for ' + account;
-  const input = document.createElement('input');
-  input.id = id;
-  input.pattern = '[A-Za-z0-9]{4,16}';
-  input.title = '4-16 letters and digits';
-  input.autocomplete = 'new-password';
-  box.append(label, input);
-  const set = document.createElement('button');
-  set.type = 'submit';
-  set.textContent = 'Set password';
-  const generate = document.createElement('button');
-  generate.type = 'button';
-  generate.className = 'secondary';
-  generate.textContent = 'Generate password';
+  form.className = 'detail-form';
+  const buttons = document.createElement('div');
+  buttons.className = 'buttons';
   const out = document.createElement('p');
   out.setAttribute('role', 'status');
-  const remove = document.createElement('button');
-  remove.type = 'button';
-  remove.className = 'danger';
-  remove.textContent = 'Delete player';
-  remove.addEventListener('click', () => removePlayer(account));
-  form.append(box, set, generate, remove);
-  form.addEventListener('submit', (e) => { e.preventDefault(); save('password', account, input, out, 'New password set for'); });
-  generate.addEventListener('click', () => { input.value = ''; save('password', account, input, out, 'New password set for'); });
+  const cancel = button('Cancel', 'secondary cancel', () => setMode('actions'));
+
+  if (mode === 'password') {
+    const label = document.createElement('label');
+    label.htmlFor = 'pw-' + a.account;
+    label.textContent = 'New password for ' + a.account;
+    const input = document.createElement('input');
+    input.id = 'pw-' + a.account;
+    input.pattern = '[A-Za-z0-9]{4,16}';
+    input.title = '4-16 letters and digits';
+    input.autocomplete = 'new-password';
+    buttons.append(button('Set', '', null, 'submit'),
+      button('Generate', 'secondary', () => { input.value = ''; save('password', a.account, input, out, 'New password set for'); }),
+      cancel);
+    form.append(label, input, buttons);
+    form.addEventListener('submit', (e) => { e.preventDefault(); save('password', a.account, input, out, 'New password set for'); });
+  } else if (mode === 'delete') {
+    const question = document.createElement('p');
+    question.className = 'question';
+    const what = a.personas.length ? ', its personas ' + a.personas.join(', ') + ' and their stats and track records' : '';
+    question.textContent = 'Delete ' + a.account + what + '? This cannot be undone. If the player is online, they are disconnected.';
+    buttons.append(button('Delete', 'danger', null, 'submit'), cancel);
+    form.append(question, buttons);
+    form.addEventListener('submit', (e) => { e.preventDefault(); removePlayer(a.account); });
+  } else {
+    // the dates again: phones don't show their columns
+    const meta = document.createElement('p');
+    meta.className = 'meta';
+    meta.textContent = 'Created ' + when(a.created) + ' · last login ' + when(a.last_login);
+    buttons.append(button('Change password', '', () => setMode('password')),
+      button('Delete player', 'danger', () => setMode('delete')));
+    form.append(meta, buttons);
+  }
 
   const td = document.createElement('td');
   td.colSpan = 4;
@@ -100,22 +145,20 @@ function renderPlayers() {
     + (q ? ', ' + list.length + ' shown.' : '.');
   const rows = [];
   for (const a of list) {
-    const name = document.createElement('button');
-    name.type = 'button';
-    name.className = 'player';
-    name.textContent = a.account;
+    // the name stays a button for the keyboard; its click reaches the row like any other
+    const name = button(a.account, 'player');
     name.setAttribute('aria-expanded', String(open === a.account));
-    name.addEventListener('click', () => {
-      open = open === a.account ? null : a.account;
-      renderPlayers();
-      if (open) $('pw-' + open).focus();
-    });
     const first = document.createElement('td');
     first.append(name);
     const tr = document.createElement('tr');
-    tr.append(first, cell(a.personas.join(', ') || '–'), cell(when(a.created)), cell(when(a.last_login)));
+    tr.className = 'player-row' + (open === a.account ? ' open' : '');
+    tr.addEventListener('click', () => {
+      open = open === a.account ? null : a.account;
+      setMode('actions');
+    });
+    tr.append(first, cell(a.personas.join(', ') || '–'), cell(when(a.created), 'wide'), cell(when(a.last_login), 'wide'));
     rows.push(tr);
-    if (open === a.account) rows.push(passwordRow(a.account));
+    if (open === a.account) rows.push(detailRow(a));
   }
   if (!list.length) {
     const td = cell(players.length ? 'No account or persona matches.' : 'No accounts yet.');
@@ -129,9 +172,6 @@ function renderPlayers() {
 }
 
 async function removePlayer(account) {
-  const a = players.find((p) => p.account === account);
-  const what = a && a.personas.length ? ' with the personas ' + a.personas.join(', ') + ', their stats and track records' : '';
-  if (!confirm('Delete ' + account + what + '? This cannot be undone. A player online now is disconnected.')) return;
   const { status, data } = await call('POST', 'delete', { account });
   if (status === 401) return show(false);
   const out = $('players-result');
@@ -216,3 +256,5 @@ $('add-generate').addEventListener('click', () => {
 $('logout').addEventListener('click', async () => { await call('POST', 'logout', {}); show(false); });
 
 call('GET', 'session').then(({ status }) => show(status === 200));
+loadHeader();
+setInterval(() => { if (!document.hidden) loadHeader(); }, 10000);

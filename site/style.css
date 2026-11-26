@@ -66,6 +66,7 @@ nav a {
 nav a:hover { color: var(--text); border-color: var(--line); }
 nav a.admin-link { display: inline-flex; align-items: center; justify-content: center; }
 nav a.admin-link svg { transform: skewX(12deg); } /* upright inside the slanted box */
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 nav a[aria-current="page"] {
   color: #000; background: var(--neon); border-color: var(--neon);
   box-shadow: 0 0 16px rgba(31, 224, 255, 0.45);
@@ -130,14 +131,14 @@ table { width: 100%; border-collapse: collapse; background: var(--panel); border
 th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; background: var(--panel-2); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-.steps, .panel ul { padding-left: 1.4rem; }
-.steps li, .panel ul li { margin: 0.3rem 0; }
-table.ports td:first-child { white-space: nowrap; font-weight: 700; color: var(--lime); }
 #leaderboard tbody tr:nth-child(-n + 3) td:first-child { color: var(--lime); font-weight: 800; }
 .card table { border: 0; background: transparent; }
 .card td, .card th { padding: 0.3rem 0.4rem; }
 
 .address code { font-size: 1.4rem; }
+.steps, .panel ul { padding-left: 1.4rem; }
+.steps li, .panel ul li { margin: 0.3rem 0; }
+table.ports td:first-child { white-space: nowrap; font-weight: 700; color: var(--lime); }
 
 /* forms (admin) */
 label { display: block; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 0.75rem 0 0.3rem; }
@@ -154,16 +155,34 @@ form button, button.link {
 form button.secondary, button.link { color: var(--neon); background: transparent; }
 button.link { margin: 0; padding: 0.4rem 0.9rem; }
 .narrow { max-width: 420px; }
+#login { max-width: 420px; margin: 8vh auto 0; }
+#login h1 { text-align: center; }
+#login h1::after { margin-left: auto; margin-right: auto; }
+#login form button { width: 100%; }
+#login-error:empty { display: none; }
 button.player {
   font: inherit; font-weight: 700; color: var(--neon); background: none; border: 0; padding: 0; cursor: pointer;
   text-decoration: underline; text-decoration-color: rgba(31, 224, 255, 0.4); text-underline-offset: 3px;
 }
 button.player[aria-expanded="true"] { color: var(--lime); }
 tr.detail td { background: var(--panel-2); }
-form button.danger { color: #ff8ab8; background: transparent; border-color: var(--hot); margin-left: auto; }
-tr.detail .row button { margin-top: 0; }
+form button.danger { color: #ff8ab8; background: transparent; border-color: var(--hot); }
 tr.detail p { margin: 0.5rem 0 0; }
-#filter { max-width: 420px; }
+tr.detail p.question { margin: 0; }
+.detail-form label { margin-top: 0; }
+.detail-form .buttons, #add-form .buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin-top: 0.75rem; }
+#add-form .buttons button { margin-top: 0.5rem; }
+#add-result, #add-form + .lead { text-align: center; }
+.detail-form .question, .detail-form .meta { text-align: center; }
+.detail-form .buttons:first-child { margin-top: 0; }
+.detail-form .buttons button { margin-top: 0; }
+.detail-form .meta { display: none; margin: 0 0 0.75rem; color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 640px) {
+  #players .wide { display: none; }
+  .detail-form .meta { display: block; }
+}
+tr.player-row { cursor: pointer; }
+tr.player-row:hover td, tr.player-row.open td { background: rgba(31, 224, 255, 0.06); }
 #filter + .lead { margin-top: 0.75rem; }
 .panel .scroll + h2 { margin-top: 2rem; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
