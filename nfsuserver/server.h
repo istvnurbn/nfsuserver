@@ -240,6 +240,7 @@ void BroadCastCommand(RUsersClass& users, char* command, char* params[], int par
 const char* AddrFor(UserClass* about, UserClass* to);
 const char* LobbyAddrFor(ConnectionClass* con);
 char* GetPlayerStat(const char* Name);
+int AddPersona(const char* account, const char* persona);
 void GetOppREP_Rating(const char* name, const char race_type, int& rep, int& rating);
 
 // calcstat.cpp

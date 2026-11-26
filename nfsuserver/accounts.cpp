@@ -362,6 +362,75 @@ int AccountDelete( const char * given, char * name, char personas[4][100] ) {
 	return ACC_OK;
 }
 
+// Renames, for the admin page. Names are keys that other tables point to,
+// so the foreign keys are checked at COMMIT, after every table is updated.
+static int Rename( const char * const * sql, int n, const char * to, const char * from ) {
+	Exec ("BEGIN");
+	Exec ("PRAGMA defer_foreign_keys = ON");
+	for (int i = 0; i < n; i++) {
+		int rc = Exec (sql[i], to, from);
+		if (rc != SQLITE_DONE) {
+			Exec ("ROLLBACK");
+			return rc == SQLITE_CONSTRAINT ? ACC_DUPL : ACC_ERROR;
+		}
+	}
+	if (Exec ("COMMIT") == SQLITE_DONE) return ACC_OK;
+	Exec ("ROLLBACK");
+	return ACC_ERROR;
+}
+
+// the account's name as stored, whatever the case of given
+bool AccountName( const char * given, char * name ) {
+	sqlite3_stmt * st = NULL;
+	bool found = Run (&st, "SELECT name FROM accounts WHERE name = ?", given) == SQLITE_ROW;
+	if (found) snprintf (name, 100, "%s", (const char *)sqlite3_column_text (st, 0));
+	sqlite3_finalize (st);
+	return found;
+}
+
+int AccountRename( const char * given, const char * to, char * name ) {
+	sqlite3_stmt * st = NULL;
+	int rc = Run (&st, "SELECT name FROM accounts WHERE name = ?", given);
+	if (rc != SQLITE_ROW) {
+		sqlite3_finalize (st);
+		return rc == SQLITE_DONE ? ACC_NOUSER : ACC_ERROR;
+	}
+	snprintf (name, 100, "%s", (const char *)sqlite3_column_text (st, 0));
+	sqlite3_finalize (st);
+	static const char * const sql[2] = {
+		"UPDATE accounts SET name = ?1 WHERE name = ?2",
+		"UPDATE personas SET account = ?1 WHERE account = ?2" };
+	rc = Rename (sql, 2, to, name);
+	if (rc == ACC_OK) {
+		std::string account (name);
+		for (size_t i = 0; i < account.size (); i++) account[i] = (char)tolower ((unsigned char)account[i]);
+		accountStrikes.erase (account);
+	}
+	return rc;
+}
+
+int PersonaFind( const char * account, const char * persona, char * stored, char * old ) {
+	sqlite3_stmt * st = NULL;
+	int rc = Run (&st, "SELECT a.name, p.name FROM personas p JOIN accounts a ON a.name = p.account"
+		" WHERE a.name = ? AND p.name = ?", account, persona);
+	if (rc == SQLITE_ROW) {
+		snprintf (stored, 100, "%s", (const char *)sqlite3_column_text (st, 0));
+		snprintf (old, 100, "%s", (const char *)sqlite3_column_text (st, 1));
+	}
+	sqlite3_finalize (st);
+	return rc == SQLITE_ROW ? ACC_OK : rc == SQLITE_DONE ? ACC_NOUSER : ACC_ERROR;
+}
+
+int PersonaRename( const char * account, const char * persona, const char * to, char * stored, char * old ) {
+	int rc = PersonaFind (account, persona, stored, old);
+	if (rc != ACC_OK) return rc;
+	static const char * const sql[3] = {
+		"UPDATE personas SET name = ?1 WHERE name = ?2",
+		"UPDATE stats SET persona = ?1 WHERE persona = ?2",
+		"UPDATE track_records SET persona = ?1 WHERE persona = ?2" };
+	return Rename (sql, 3, to, old);
+}
+
 // for the admin page; also lifts a lock from wrong passwords
 int AccountSetPassword( const char * name, const char * pass ) {
 	char hash[128];

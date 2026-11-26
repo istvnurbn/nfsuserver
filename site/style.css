@@ -236,6 +236,8 @@ tr.detail td { background: var(--asphalt-2); }
 tr.detail p { margin: 0.5rem 0 0; }
 tr.detail p.question { margin: 0; }
 .detail-form label { margin-top: 0; }
+.detail-form input + label { margin-top: 0.75rem; }
+tr.detail input + p.question { margin-top: 0.75rem; }
 .detail-form .buttons, #add-form .buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin-top: 0.75rem; }
 /* same width and the same gap as the two fields, so the gaps line up */
 #add-form .buttons { flex-wrap: nowrap; gap: 1rem; }

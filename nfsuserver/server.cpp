@@ -951,6 +951,20 @@ void ServerClass::LoadStat() {
 	StatLoadAll(AddStat);
 };
 
+// a new persona with cper's starting stats, saved and on the rank lists;
+// account as stored. ACC_DUPL: the name is taken, ACC_MAXP: 4 already
+int AddPersona(const char* account, const char* persona) {
+	int rc = PersonaCreate(account, persona);
+	if (rc != ACC_OK) return rc;
+	PS.push_back(PlayerStat(persona, 9999, 0, 0, 0, 100, 101, 101,
+		9999, 0, 0, 0, 100, 101, 101,
+		9999, 0, 0, 0, 100, 101, 101,
+		9999, 0, 0, 0, 100, 101, 101,
+		9999, 0, 0, 0, 100, 101, 101));
+	Server.SaveStat(persona);
+	return ACC_OK;
+}
+
 char* GetPlayerStat(const char* Name) {
 	//char tmp[1024];
 	std::vector<PlayerStat>::iterator it;

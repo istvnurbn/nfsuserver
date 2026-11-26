@@ -49,7 +49,7 @@
       <p class="lead" id="players-count"></p>
       <label for="filter">Filter by account or persona</label>
       <input id="filter" type="search" autocomplete="off">
-      <p class="lead">Click a player to set a new password or delete them.</p>
+      <p class="lead">Click a player to set a new password, edit their names, add or delete personas, or delete the player.</p>
       <p id="players-result" role="status"></p>
       <div class="scroll"><table id="players">
         <thead><tr><th scope="col">Account</th><th scope="col">Personas</th><th scope="col" class="wide">Created</th><th scope="col" class="wide">Last login</th></tr></thead>
@@ -64,13 +64,15 @@
           <div><label for="new-account">Account</label><input id="new-account" pattern="[A-Za-z0-9]{4,16}" title="4-16 letters and digits" autocomplete="off" required></div>
           <div><label for="add-password">Password</label><input id="add-password" pattern="[A-Za-z0-9]{4,16}" title="4-16 letters and digits" autocomplete="new-password"></div>
         </div>
+        <label for="add-persona">Persona (optional)</label>
+        <input id="add-persona" pattern="[A-Za-z0-9]{3,12}" title="3-12 letters and digits" autocomplete="off">
         <div class="buttons">
           <button type="submit">Add player</button>
           <button type="button" id="add-generate" class="secondary">Generate</button>
         </div>
         <p id="add-result" role="status"></p>
       </form>
-      <p class="lead">Passwords are 4–16 letters and digits. The player logs in with the account and creates their personas in the game.</p>
+      <p class="lead">Passwords are 4–16 letters and digits. A persona is the name other players see in races; players can make up to 4 in the game.</p>
     </div>
 
     <div class="panel">

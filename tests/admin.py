@@ -119,6 +119,30 @@ def main():
     made2 = body.get("password", "")
     expect((status, bool(re.fullmatch(r"[A-Za-z0-9]{10}", made2))), (200, True), "adding a player with a generated password")
     expect(can_log_in(server, "adminmade2", made2), True, "that player logs in")
+    status, _, body = call(server, "POST", "/api/admin/accounts",
+                           {"account": "withpers", "password": "with1234", "persona": "WithP"}, session)
+    expect((status, body), (200, {"account": "withpers"}), "adding a player with a persona")
+    p = connect(server)
+    fields = p.request("auth", f'NAME=withpers\nPASS={encode_pass("with1234")}\nVERS="pc/1.4"\n', "auth")
+    expect(fields.get("PERSONAS", ""), "WithP", "the game gets the persona")
+    p.sock.close()  # logged in twice at once, the second login would be refused
+    time.sleep(1)
+    board = [p["persona"] for p in call(server, "GET", "/api/leaderboard?mode=all")[2]["players"]]
+    expect("WithP" in board, True, "the new persona on the leaderboard")
+    expect(call(server, "POST", "/api/admin/accounts", {"account": "withpers2", "password": "x1234", "persona": "withp"},
+                session)[0], 409, "a player with a persona that exists")
+    expect(call(server, "POST", "/api/admin/accounts", {"account": "withpers3", "password": "x1234", "persona": "ab"},
+                session)[0], 400, "a persona of 2 characters")
+    for i in range(2, 5):
+        status, _, body = call(server, "POST", "/api/admin/personas", {"account": "WITHPERS", "persona": f"withp{i}"}, session)
+        expect((status, body), (200, {"persona": f"withp{i}"}), f"adding persona {i}")
+    expect(call(server, "POST", "/api/admin/personas", {"account": "withpers", "persona": "withp5"}, session)[0], 409,
+           "a fifth persona")
+    expect(call(server, "POST", "/api/admin/personas", {"account": "nobody9", "persona": "nobodyp"}, session)[0], 404,
+           "a persona for an account that doesn't exist")
+    p = connect(server)
+    fields = p.request("auth", f'NAME=withpers\nPASS={encode_pass("with1234")}\nVERS="pc/1.4"\n', "auth")
+    expect(fields.get("PERSONAS", ""), "WithP,withp2,withp3,withp4", "the game gets all four")
     expect(call(server, "POST", "/api/admin/accounts", {"account": "AdminMade", "password": "x1234"}, session)[0], 409,
            "an account name that exists (in other case)")
     expect(call(server, "POST", "/api/admin/accounts", {"account": "abc", "password": "x1234"}, session)[0], 400,
@@ -131,7 +155,42 @@ def main():
     expect(accounts["apihost"]["personas"], ["apihost"], "an account with its persona")
     expect((accounts["adminmade"]["created"] != "", accounts["adminmade"]["last_login"] is not None), (True, True),
            "created and last login")
-    expect("goodname" in accounts, False, "nothing added by the refused tries")
+    expect([n for n in ("goodname", "withpers2", "withpers3") if n in accounts], [], "nothing added by the refused tries")
+    expect(sorted(accounts["withpers"]["personas"]), ["WithP", "withp2", "withp3", "withp4"], "the list with four personas")
+    # deleting a persona: its stats go, the others stay
+    status, _, body = call(server, "POST", "/api/admin/deletepersona", {"account": "WithPers", "persona": "WITHP3"}, session)
+    expect((status, body), (200, {"persona": "withp3"}), "deleting a persona (as stored)")
+    accounts = {a["account"]: a for a in call(server, "GET", "/api/admin/accounts", cookie=session)[2]["accounts"]}
+    expect(sorted(accounts["withpers"]["personas"]), ["WithP", "withp2", "withp4"], "the other personas stay")
+    board = [p["persona"] for p in call(server, "GET", "/api/leaderboard?mode=all")[2]["players"]]
+    expect(("withp3" in board, "withp4" in board), (False, True), "the deleted persona gone from the leaderboard")
+    expect(call(server, "POST", "/api/admin/deletepersona", {"account": "withpers", "persona": "withp3"}, session)[0],
+           404, "deleting it again")
+    expect(call(server, "POST", "/api/admin/deletepersona", {"account": "adminmade", "persona": "withp4"}, session)[0],
+           404, "a persona of another account")
+    p = connect(server)
+    fields = p.request("auth", f'NAME=withpers\nPASS={encode_pass("with1234")}\nVERS="pc/1.4"\n', "auth")
+    expect(fields.get("PERSONAS", ""), "WithP,withp2,withp4", "the game gets the three left")
+    p.sock.close()
+    # four more personas on the rank lists would shift the positions stats.py checks later
+    expect(call(server, "POST", "/api/admin/delete", {"account": "withpers"}, session)[0], 200, "removing them again")
+
+    # an account named like another player's persona: the server looks each up by its own kind
+    p1 = connect(server)
+    expect(acct(p1, "clashone", "clash123"), "acct", "a player signs up")
+    p1 = connect(server)
+    expect(auth(p1, "clashone", "clash123"), "auth", "and logs in")
+    p1.request("cper", "PERS=clashtwo\n", "cper")
+    p1.request("pers", "PERS=clashtwo\n", "pers")
+    p2 = connect(server)
+    expect(acct(p2, "clashtwo", "clash123"), "acct", "an account named like that persona signs up")
+    p2 = connect(server)
+    expect(auth(p2, "clashtwo", "clash123"), "auth", "and logs in while the persona is online")
+    p2.request("cper", "PERS=clashthree\n", "cper")
+    p1.request("pers", "PERS=clashtwo\n", "pers")
+    print("ok  both stay connected, each with their own personas")
+    for name in ("clashone", "clashtwo"):
+        call(server, "POST", "/api/admin/delete", {"account": name}, session)
 
     # deleting a player who is online, with a persona on the rank list
     online = player(server, "delme")
@@ -153,24 +212,48 @@ def main():
     fields = p.request("auth", f'NAME=delme\nPASS={encode_pass("again123")}\nVERS="pc/1.4"\n', "auth")
     expect(fields.get("PERSONAS", ""), "", "a new account of that name starts without the old personas")
 
-    # an account named like another player's persona: the server looks each up by its own kind
-    p1 = connect(server)
-    expect(acct(p1, "clashone", "clash123"), "acct", "a player signs up")
-    p1 = connect(server)
-    expect(auth(p1, "clashone", "clash123"), "auth", "and logs in")
-    p1.request("cper", "PERS=clashtwo\n", "cper")
-    p1.request("pers", "PERS=clashtwo\n", "pers")
-    p2 = connect(server)
-    expect(acct(p2, "clashtwo", "clash123"), "acct", "an account named like that persona signs up")
-    p2 = connect(server)
-    expect(auth(p2, "clashtwo", "clash123"), "auth", "and logs in while the persona is online")
-    p2.request("cper", "PERS=clashthree\n", "cper")
-    p1.request("pers", "PERS=clashtwo\n", "pers")
-    print("ok  both stay connected, each with their own personas")
-    for name in ("clashone", "clashtwo"):
-        call(server, "POST", "/api/admin/delete", {"account": name}, session)
+    # renaming an account and a persona of a player who is online
+    online = player(server, "renme")
+    call(server, "POST", "/api/admin/password", {"account": "renme", "password": "ren12345"}, session)
+    rep = {p["persona"]: p["rep"] for p in call(server, "GET", "/api/leaderboard?mode=all")[2]["players"]}["renme"]
+    status, _, body = call(server, "POST", "/api/admin/rename", {"account": "RenMe", "to": "renamed1"}, session)
+    expect((status, body), (200, {"account": "renamed1"}), "renaming an account")
+    try:
+        online.read(1)
+        gone = False
+    except SystemExit:
+        gone = True
+    expect(gone, True, "the renamed player is disconnected")
+    expect((can_log_in(server, "renamed1", "ren12345"), can_log_in(server, "renme", "ren12345")), (True, False),
+           "the player logs in with the new name only")
+    expect(call(server, "POST", "/api/admin/rename", {"account": "renamed1", "to": "adminmade"}, session)[0], 409,
+           "renaming to an account that exists")
+    expect(call(server, "POST", "/api/admin/rename", {"account": "renamed1", "to": "abc"}, session)[0], 400,
+           "renaming to 3 characters")
+    expect(call(server, "POST", "/api/admin/rename", {"account": "nobody9", "to": "somebody9"}, session)[0], 404,
+           "renaming an account that doesn't exist")
+    status, _, body = call(server, "POST", "/api/admin/persona",
+                           {"account": "renamed1", "persona": "RENME", "to": "newpers"}, session)
+    expect((status, body), (200, {"persona": "newpers"}), "renaming a persona")
+    accounts = {a["account"]: a for a in call(server, "GET", "/api/admin/accounts", cookie=session)[2]["accounts"]}
+    expect(("renme" in accounts, accounts["renamed1"]["personas"]), (False, ["newpers"]), "the list after renaming")
+    board = {p["persona"]: p["rep"] for p in call(server, "GET", "/api/leaderboard?mode=all")[2]["players"]}
+    expect(("renme" in board, board.get("newpers")), (False, rep), "the stats moved to the new persona name")
+    expect(call(server, "POST", "/api/admin/persona", {"account": "renamed1", "persona": "newpers", "to": "apihost"},
+                session)[0], 409, "renaming to a persona that exists")
+    expect(call(server, "POST", "/api/admin/persona", {"account": "adminmade", "persona": "newpers", "to": "other1"},
+                session)[0], 404, "a persona of another account")
+    expect(call(server, "POST", "/api/admin/persona", {"account": "renamed1", "persona": "newpers", "to": "ab"},
+                session)[0], 400, "a persona name of 2 characters")
+    p = connect(server)
+    fields = p.request("auth", f'NAME=renamed1\nPASS={encode_pass("ren12345")}\nVERS="pc/1.4"\n', "auth")
+    expect(fields.get("PERSONAS", ""), "newpers", "the game gets the new persona name")
 
     lines = "".join(call(server, "GET", "/api/admin/log", cookie=session)[2]["lines"])
+    expect("Admin renamed account renme to renamed1." in lines, True, "the account rename in the log")
+    expect("Admin added account withpers with persona WithP." in lines, True, "the player with a persona in the log")
+    expect("Admin added persona withp2 to account withpers." in lines, True, "the added persona in the log")
+    expect("Admin renamed persona renme of account renamed1 to newpers." in lines, True, "the persona rename in the log")
     expect("Admin deleted account delme (personas: delme)" in lines, True, "the deletion in the log")
     expect("Admin added account adminmade" in lines, True, "the new account in the log")
     expect("made1234" in lines or made2 in lines, False, "new players' passwords kept out of the log")

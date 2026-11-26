@@ -1287,7 +1287,7 @@ threadfunc ListenerWorker(void *Dummy){
 						const char* err = NULL;
 						if (len < 3 || len > 12) err = "cperinam";
 						else if (!NameValid(field, 3, 12)) err = "cperiper";
-						else switch (PersonaCreate(user->Username, field)) {
+						else switch (AddPersona(user->Username, field)) {
 						case ACC_OK: break;
 						case ACC_DUPL: err = "cperdupl"; break;
 						case ACC_MAXP: err = "cpermaxp"; break;
@@ -1298,13 +1298,6 @@ threadfunc ListenerWorker(void *Dummy){
 							break;
 						}
 						LoadPersonas(user->Username, user->Personas);
-
-						PS.push_back(PlayerStat(field, 9999, 0, 0, 0, 100, 101, 101,
-							9999, 0, 0, 0, 100, 101, 101,
-							9999, 0, 0, 0, 100, 101, 101,
-							9999, 0, 0, 0, 100, 101, 101,
-							9999, 0, 0, 0, 100, 101, 101));
-						Server.SaveStat(field);
 
 						sprintf(arr2[0], "PERS=%s", field);
 						sprintf(arr2[1], "NAME=%s", user->Username);

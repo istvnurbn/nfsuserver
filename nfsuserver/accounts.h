@@ -24,6 +24,13 @@ int AccountLogin( const char * given, const char * pass, const char * ip, char *
 int AccountCreate( const char * name, const char * pass );
 int AccountSetPassword( const char * name, const char * pass );
 int AccountDelete( const char * given, char * name, char personas[4][100] );
+// name receives the old name as stored; ACC_DUPL: the new name is taken
+bool AccountName( const char * given, char * name );
+int AccountRename( const char * given, const char * to, char * name );
+// stored, name: the account and the persona as stored, whatever the case given
+int PersonaFind( const char * account, const char * persona, char * stored, char * name );
+// stored, old: the account and the persona's old name as stored; stats and track records move along
+int PersonaRename( const char * account, const char * persona, const char * to, char * stored, char * old );
 // created and lastLogin as SQLite writes them (UTC), personas comma separated
 struct AccountInfo { std::string name, created, lastLogin, personas; };
 bool AccountList( std::vector<AccountInfo> & out );

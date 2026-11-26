@@ -120,7 +120,7 @@ For a race between players inside and outside, port 3658 UDP has to be forwarded
 
 ### Admin login for the website
 
-The admin page (`site/admin.html`) adds, lists and deletes players, sets their passwords, and shows the server log and `nfsu.conf`. It is off until both files exist:
+The admin page (`site/admin.html`) adds, lists, renames and deletes players, adds, renames and deletes their personas (up to 4, as in the game), sets their passwords, and shows the server log and `nfsu.conf`. It is off until the files exist (only the password file in LAN mode, below):
 
 ```sh
 mkpasswd -m yescrypt > admin-password        # asks for the password; use 16 characters or more

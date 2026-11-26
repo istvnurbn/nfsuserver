@@ -12,9 +12,14 @@
 //   POST /api/admin/logout
 //   GET  /api/admin/session   200 while logged in, else 401; "totp" false in LAN mode
 //   GET  /api/admin/accounts  every account with its personas, created and last login
-//   POST /api/admin/accounts  {"account", "password"} adds a player; an empty password makes one up and returns it
+//   POST /api/admin/accounts  {"account", "password", "persona"} adds a player, with a persona if one is given;
+//                             an empty password makes one up and returns it
+//   POST /api/admin/personas  {"account", "persona"} adds a persona (the game allows 4)
 //   POST /api/admin/password  {"account", "password"}: an empty password makes one up and returns it
 //   POST /api/admin/delete    {"account"} removes it with its personas, stats and track records
+//   POST /api/admin/deletepersona {"account", "persona"} removes a persona with its stats and track records
+//   POST /api/admin/rename    {"account", "to"} renames an account
+//   POST /api/admin/persona   {"account", "persona", "to"} renames a persona, its stats and track records along
 //   GET  /api/admin/log       the last 500 log lines
 //   GET  /api/admin/config    nfsu.conf
 
@@ -294,6 +299,28 @@ static void Reply(SOCKET s, const char* status, const std::string& body, const s
 
 static const char* const SESSION_COOKIE = "nfsu_admin";
 
+// A player whose names changed or who is gone must not be found in memory under
+// the old names. Call with the lobby lock held.
+static void DropUser(const char* account) {
+	for (UserClass* u = Server.Users.First, *next; u != NULL; u = next) {
+		next = u->Next;
+		if (strcmp(u->Username, account) != 0) continue;
+		if (u->Connection == NULL) { // offline: drop it now, as Maintenance does after 45 minutes
+			Server.Users.RemoveUser(u);
+			free(u);
+		} else { // online: disconnect; Maintenance drops it once the connection is closed
+			u->Connection->Abort = true;
+			u->Deleted = true;
+		}
+	}
+}
+
+static void NameError(SOCKET s, int rc, const char* taken, const char* failed) {
+	if (rc == ACC_NOUSER) Reply(s, "404 Not Found", "{\"error\":\"no such account or persona\"}");
+	else if (rc == ACC_DUPL) Reply(s, "409 Conflict", std::string("{\"error\":\"") + taken + "\"}");
+	else Reply(s, "500 Internal Server Error", std::string("{\"error\":\"") + failed + "\"}");
+}
+
 static void Admin(SOCKET s, const Request& r) {
 	char log[256];
 	std::map<std::string, std::string> in;
@@ -317,6 +344,10 @@ static void Admin(SOCKET s, const Request& r) {
 			snprintf(body, sizeof(body), "{\"error\":\"wait\",\"retry\":%d}", retry);
 			snprintf(extra, sizeof(extra), "Retry-After: %d\r\n", retry);
 			Reply(s, "429 Too Many Requests", body, extra);
+		} else if (rc == ADMIN_FAR) {
+			snprintf(log, sizeof(log), "Admin login refused from %s: LAN mode takes private addresses only.\n", r.ip.c_str());
+			Log(log);
+			Reply(s, "403 Forbidden", "{\"error\":\"the admin login works only from the local network\"}");
 		} else if (rc == ADMIN_WRONG) {
 			snprintf(log, sizeof(log), "Admin login failed from %s.\n", r.ip.c_str());
 			Log(log);
@@ -324,12 +355,14 @@ static void Admin(SOCKET s, const Request& r) {
 		} else {
 			snprintf(log, sizeof(log), "Admin logged in from %s.\n", r.ip.c_str());
 			Log(log);
+			// a LAN often has no HTTPS, and a browser keeps no Secure cookie from plain HTTP
 			Reply(s, "200 OK", "{\"admin\":true}", std::string("Set-Cookie: ") + SESSION_COOKIE + "=" + token
 				+ "; Path=/api/admin; Max-Age=43200; HttpOnly; " + (AdminLan() ? "" : "Secure; ") + "SameSite=Strict\r\n");
 		}
 		return;
 	}
 	std::string token = r.Cookie(SESSION_COOKIE);
+	std::string totp = AdminLan() ? ",\"totp\":false}" : ",\"totp\":true}";
 	if (!AdminSession(token)) {
 		Reply(s, "401 Unauthorized", "{\"error\":\"log in first\"" + totp);
 		return;
@@ -344,10 +377,6 @@ static void Admin(SOCKET s, const Request& r) {
 		std::string account = in["account"], password = in["password"];
 		bool made = password.empty();
 		if (made) password = RandomPassword();
-		} else if (rc == ADMIN_FAR) {
-			snprintf(log, sizeof(log), "Admin login refused from %s: LAN mode takes private addresses only.\n", r.ip.c_str());
-			Log(log);
-			Reply(s, "403 Forbidden", "{\"error\":\"the admin login works only from the local network\"}");
 		ClientConnections.mut.Lock(); // the lobby uses the database under this lock too
 		int rc = AccountSetPassword(account.c_str(), password.c_str());
 		ClientConnections.mut.Unlock();
@@ -355,14 +384,12 @@ static void Admin(SOCKET s, const Request& r) {
 		else if (rc == ACC_BADPASS) Reply(s, "400 Bad Request", "{\"error\":\"passwords are 4-16 letters and digits\"}");
 		else if (rc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not save the password\"}");
 		else {
-			// a LAN often has no HTTPS, and a browser keeps no Secure cookie from plain HTTP
 			snprintf(log, sizeof(log), "Admin set a new password for account %.100s.\n", account.c_str());
 			Log(log);
 			std::string out = "{\"account\":";
 			Str(out, account.c_str());
 			if (made) { out += ",\"password\":"; Str(out, password.c_str()); }
 			Reply(s, "200 OK", out + "}");
-	std::string totp = AdminLan() ? ",\"totp\":false}" : ",\"totp\":true}";
 		}
 	}
 	else if (action == "accounts" && !post) {
@@ -396,21 +423,32 @@ static void Admin(SOCKET s, const Request& r) {
 		Reply(s, "200 OK", out + "]}");
 	}
 	else if (action == "accounts" && post) {
-		std::string account = in["account"], password = in["password"];
+		std::string account = in["account"], password = in["password"], persona = in["persona"];
 		bool made = password.empty();
 		if (made) password = RandomPassword();
 		if (!NameValid(account.c_str(), 4, 16)) {
 			Reply(s, "400 Bad Request", "{\"error\":\"account names are 4-16 letters and digits\"}");
 			return;
 		}
+		if (!persona.empty() && !NameValid(persona.c_str(), 3, 12)) {
+			Reply(s, "400 Bad Request", "{\"error\":\"persona names are 3-12 letters and digits\"}");
+			return;
+		}
 		ClientConnections.mut.Lock();
-		int rc = AccountCreate(account.c_str(), password.c_str());
+		int rc = AccountCreate(account.c_str(), password.c_str()), prc = ACC_OK;
+		if (rc == ACC_OK && !persona.empty() && (prc = AddPersona(account.c_str(), persona.c_str())) != ACC_OK) {
+			char name[100], none[4][100];
+			AccountDelete(account.c_str(), name, none); // all or nothing
+		}
 		ClientConnections.mut.Unlock();
-		if (rc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that account exists already\"}");
+		if (prc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that persona exists already\"}");
+		else if (prc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not add the persona\"}");
+		else if (rc == ACC_DUPL) Reply(s, "409 Conflict", "{\"error\":\"that account exists already\"}");
 		else if (rc == ACC_BADPASS) Reply(s, "400 Bad Request", "{\"error\":\"passwords are 4-16 letters and digits\"}");
 		else if (rc != ACC_OK) Reply(s, "500 Internal Server Error", "{\"error\":\"could not add the account\"}");
 		else {
-			snprintf(log, sizeof(log), "Admin added account %.100s.\n", account.c_str());
+			if (persona.empty()) snprintf(log, sizeof(log), "Admin added account %.100s.\n", account.c_str());
+			else snprintf(log, sizeof(log), "Admin added account %.100s with persona %.100s.\n", account.c_str(), persona.c_str());
 			Log(log);
 			std::string out = "{\"account\":";
 			Str(out, account.c_str());
@@ -429,18 +467,7 @@ static void Admin(SOCKET s, const Request& r) {
 				if (it != PS.end()) PS.erase(it); // off the rank lists now, not after a restart
 				gone += (i ? ", " : "") + std::string(personas[i]);
 			}
-			// a new account of that name must not find this player in memory, with these personas
-			for (UserClass* u = Server.Users.First, *next; u != NULL; u = next) {
-				next = u->Next;
-				if (strcmp(u->Username, name) != 0) continue;
-				if (u->Connection == NULL) { // offline: drop it now, as Maintenance does after 45 minutes
-					Server.Users.RemoveUser(u);
-					free(u);
-				} else { // online: disconnect; Maintenance drops it once the connection is closed
-					u->Connection->Abort = true;
-					u->Deleted = true;
-				}
-			}
+			DropUser(name); // a new account of that name must not find this player, with these personas
 		}
 		ClientConnections.mut.Unlock();
 		if (rc == ACC_NOUSER) Reply(s, "404 Not Found", "{\"error\":\"no such account\"}");
@@ -450,6 +477,93 @@ static void Admin(SOCKET s, const Request& r) {
 			Log(log);
 			std::string out = "{\"account\":";
 			Str(out, name);
+			Reply(s, "200 OK", out + "}");
+		}
+	}
+	else if (action == "personas" && post) {
+		std::string persona = in["persona"];
+		char account[100];
+		if (!NameValid(persona.c_str(), 3, 12)) {
+			Reply(s, "400 Bad Request", "{\"error\":\"persona names are 3-12 letters and digits\"}");
+			return;
+		}
+		ClientConnections.mut.Lock();
+		int rc = AccountName(in["account"].c_str(), account) ? AddPersona(account, persona.c_str()) : ACC_NOUSER;
+		if (rc == ACC_OK) // the player in memory gets it too, as after cper
+			for (UserClass* u = Server.Users.First; u != NULL; u = u->Next)
+				if (strcmp(u->Username, account) == 0 && !u->Deleted) LoadPersonas(account, u->Personas);
+		ClientConnections.mut.Unlock();
+		if (rc == ACC_MAXP) Reply(s, "409 Conflict", "{\"error\":\"this player has 4 personas, the most the game allows\"}");
+		else if (rc != ACC_OK) NameError(s, rc, "that persona exists already", "could not add the persona");
+		else {
+			snprintf(log, sizeof(log), "Admin added persona %s to account %s.\n", persona.c_str(), account);
+			Log(log);
+			std::string out = "{\"persona\":";
+			Str(out, persona.c_str());
+			Reply(s, "200 OK", out + "}");
+		}
+	}
+	else if (action == "deletepersona" && post) {
+		char account[100], persona[100];
+		ClientConnections.mut.Lock();
+		int rc = PersonaFind(in["account"].c_str(), in["persona"].c_str(), account, persona);
+		if (rc == ACC_OK && !PersonaDelete(account, persona)) rc = ACC_ERROR;
+		if (rc == ACC_OK) {
+			std::vector<PlayerStat>::iterator it = std::find(PS.begin(), PS.end(), persona);
+			if (it != PS.end()) PS.erase(it); // off the rank lists now, as after dper
+			DropUser(account); // its slot list in memory is out of date
+		}
+		ClientConnections.mut.Unlock();
+		if (rc != ACC_OK) NameError(s, rc, "", "could not delete the persona");
+		else {
+			snprintf(log, sizeof(log), "Admin deleted persona %s of account %s.\n", persona, account);
+			Log(log);
+			std::string out = "{\"persona\":";
+			Str(out, persona);
+			Reply(s, "200 OK", out + "}");
+		}
+	}
+	else if (action == "rename" && post) {
+		std::string to = in["to"];
+		char old[100];
+		if (!NameValid(to.c_str(), 4, 16)) {
+			Reply(s, "400 Bad Request", "{\"error\":\"account names are 4-16 letters and digits\"}");
+			return;
+		}
+		ClientConnections.mut.Lock();
+		int rc = AccountRename(in["account"].c_str(), to.c_str(), old);
+		if (rc == ACC_OK) DropUser(old);
+		ClientConnections.mut.Unlock();
+		if (rc != ACC_OK) NameError(s, rc, "that account exists already", "could not rename the account");
+		else {
+			snprintf(log, sizeof(log), "Admin renamed account %s to %s.\n", old, to.c_str());
+			Log(log);
+			std::string out = "{\"account\":";
+			Str(out, to.c_str());
+			Reply(s, "200 OK", out + "}");
+		}
+	}
+	else if (action == "persona" && post) {
+		std::string to = in["to"];
+		char account[100], old[100];
+		if (!NameValid(to.c_str(), 3, 12)) {
+			Reply(s, "400 Bad Request", "{\"error\":\"persona names are 3-12 letters and digits\"}");
+			return;
+		}
+		ClientConnections.mut.Lock();
+		int rc = PersonaRename(in["account"].c_str(), in["persona"].c_str(), to.c_str(), account, old);
+		if (rc == ACC_OK) {
+			std::vector<PlayerStat>::iterator it = std::find(PS.begin(), PS.end(), old);
+			if (it != PS.end()) snprintf(it->Name, sizeof(it->Name), "%s", to.c_str()); // the rank lists show the new name now
+			DropUser(account);
+		}
+		ClientConnections.mut.Unlock();
+		if (rc != ACC_OK) NameError(s, rc, "that persona exists already", "could not rename the persona");
+		else {
+			snprintf(log, sizeof(log), "Admin renamed persona %s of account %s to %s.\n", old, account, to.c_str());
+			Log(log);
+			std::string out = "{\"persona\":";
+			Str(out, to.c_str());
 			Reply(s, "200 OK", out + "}");
 		}
 	}
