@@ -791,7 +791,7 @@ threadfunc ListenerWorker(void *Dummy){
 										Log(log);
 									}
 									UserClass* us;
-									us = Server.Users.UserFromUsername(field);
+									us = Server.Users.UserFromPersona(field);
 									if (us != NULL) {
 										if (us->Connection != NULL) {
 											sprintf(arr2[0], "F=EP5");
@@ -1130,7 +1130,7 @@ threadfunc ListenerWorker(void *Dummy){
 									temp->OutgoingMessages.AddMessage(MakeMessage(buffer, (char*)reply, NULL, 0));
 								}
 								else {
-									user = Server.Users.UserFromUsername(tmp);
+									user = Server.Users.UserFromAccount(tmp);
 									if (user == NULL) {
 										if (Verbose) {
 											sprintf(log, "New user\n");

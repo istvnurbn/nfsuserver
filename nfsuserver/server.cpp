@@ -49,19 +49,19 @@ void UserClass::SelectPerson(char* person) {
 	}
 };
 
-UserClass* UsersClass::UserFromUsername(char* username) {
-	UserClass* tmp;
-	tmp = First;
-
-	while (tmp != NULL) {
-		if (!tmp->Deleted && ((strcmp(tmp->Username, username) == 0) || (strcmp(tmp->Personas[tmp->SelectedPerson], username) == 0))) {
-			return tmp;
-		}
-		tmp = tmp->Next;
-	}
-
+// Accounts and personas are separate names: an account may be called like
+// another player's persona, so each lookup matches one kind only.
+UserClass* UsersClass::UserFromAccount(const char* account) {
+	for (UserClass* tmp = First; tmp != NULL; tmp = tmp->Next)
+		if (!tmp->Deleted && strcmp(tmp->Username, account) == 0) return tmp;
 	return NULL;
-};
+}
+
+UserClass* UsersClass::UserFromPersona(const char* persona) {
+	for (UserClass* tmp = First; tmp != NULL; tmp = tmp->Next)
+		if (!tmp->Deleted && tmp->SelectedPerson >= 0 && strcmp(tmp->Personas[tmp->SelectedPerson], persona) == 0) return tmp;
+	return NULL;
+}
 
 void UsersClass::AddUser(UserClass* user) {
 	memset(user->car, 0, 1024);

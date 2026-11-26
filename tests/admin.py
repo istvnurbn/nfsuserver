@@ -130,6 +130,23 @@ def main():
     fields = p.request("auth", f'NAME=delme\nPASS={encode_pass("again123")}\nVERS="pc/1.4"\n', "auth")
     expect(fields.get("PERSONAS", ""), "", "a new account of that name starts without the old personas")
 
+    # an account named like another player's persona: the server looks each up by its own kind
+    p1 = connect(server)
+    expect(acct(p1, "clashone", "clash123"), "acct", "a player signs up")
+    p1 = connect(server)
+    expect(auth(p1, "clashone", "clash123"), "auth", "and logs in")
+    p1.request("cper", "PERS=clashtwo\n", "cper")
+    p1.request("pers", "PERS=clashtwo\n", "pers")
+    p2 = connect(server)
+    expect(acct(p2, "clashtwo", "clash123"), "acct", "an account named like that persona signs up")
+    p2 = connect(server)
+    expect(auth(p2, "clashtwo", "clash123"), "auth", "and logs in while the persona is online")
+    p2.request("cper", "PERS=clashthree\n", "cper")
+    p1.request("pers", "PERS=clashtwo\n", "pers")
+    print("ok  both stay connected, each with their own personas")
+    for name in ("clashone", "clashtwo"):
+        call(server, "POST", "/api/admin/delete", {"account": name}, session)
+
     lines = "".join(call(server, "GET", "/api/admin/log", cookie=session)[2]["lines"])
     expect("Admin deleted account delme (personas: delme)" in lines, True, "the deletion in the log")
     expect("Admin added account adminmade" in lines, True, "the new account in the log")

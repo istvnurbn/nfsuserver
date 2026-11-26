@@ -121,7 +121,8 @@ public:
 	UserClass* First;
 	void AddUser(UserClass* user);
 	void RemoveUser(UserClass* user);
-	UserClass* UserFromUsername(char* username);
+	UserClass* UserFromAccount(const char* account);
+	UserClass* UserFromPersona(const char* persona);
 	UsersClass();
 };
 
