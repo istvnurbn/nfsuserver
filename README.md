@@ -106,20 +106,6 @@ The server requires the following ports to be forwarded:
 
 Port 10990 TCP is the JSON API for the website (`apiip`, `127.0.0.1` by default). Don't forward it: a reverse proxy on the same host serves it with TLS.
 
-### Admin login for the website
-
-The admin page (`site/admin.html`) resets players' passwords and shows the server log and `nfsu.conf`. It is off until both files exist:
-
-```sh
-mkpasswd -m yescrypt > admin-password        # asks for the password; use 16 characters or more
-head -c 20 /dev/urandom | base32 > admin-totp
-qrencode -t ansiutf8 "otpauth://totp/NFSU:admin?issuer=NFSU&secret=$(cat admin-totp)"   # scan with the phone
-```
-
-Set `adminpasswordfile` and `admintotpfile` in `nfsu.conf` to them (on NixOS: `services.nfsuserver.adminPasswordFile` and `adminTotpFile`, as strings so they stay out of the Nix store). Logging in takes the password and the 6-digit code from the phone. Wrong tries slow down that visitor's address, doubling up to 15 minutes; the account never locks. A lost phone: write a new secret to `admin-totp`, restart the server and scan the new code.
-
-The slowdown needs the visitor's address, so the reverse proxy has to set the `X-Real-IP` header (nginx: `proxy_set_header X-Real-IP $remote_addr;`, Caddy: `header_up X-Real-IP {remote_host}`). The server believes it only from `apiproxyip` (`127.0.0.1` by default).
-
 The race itself is played peer to peer between the games of the players and does not pass through the server. For that the player who hosts needs port 3658 UDP, see [Client Configuration](#client-configuration). It is not a port of the server.
 
 ### Players in the network of the server
@@ -131,6 +117,54 @@ The server tells every game where to find the others, and what it tells depends 
 * A player on the machine of the server is announced to the others in its network with the address they reach the server on, not with `127.0.0.1`.
 
 For a race between players inside and outside, port 3658 UDP has to be forwarded to the machine of the player inside who hosts, not to the server. A router can do that for one machine only.
+
+### Admin login for the website
+
+The admin page (`site/admin.html`) adds, lists and deletes players, sets their passwords, and shows the server log and `nfsu.conf`. It is off until both files exist:
+
+```sh
+mkpasswd -m yescrypt > admin-password        # asks for the password; use 16 characters or more
+head -c 20 /dev/urandom | base32 > admin-totp
+qrencode -t ansiutf8 "otpauth://totp/NFSU:admin?issuer=NFSU&secret=$(cat admin-totp)"   # scan with the phone
+```
+
+Set `adminpasswordfile` and `admintotpfile` in `nfsu.conf` to them (on NixOS: `services.nfsuserver.adminPasswordFile` and `adminTotpFile`, as strings so they stay out of the Nix store). Logging in takes the password and the 6-digit code from the phone. Wrong tries slow down that visitor's address, doubling up to 15 minutes; the account never locks. A lost phone: write a new secret to `admin-totp`, restart the server and scan the new code.
+
+### Running the website
+
+**NixOS.** The module sets up nginx with a Let's Encrypt certificate:
+
+```nix
+services.nfsuserver = {
+  enable = true;
+  openFirewall = true;          # also opens 80 and 443 for the website
+  website = {
+    enable = true;
+    hostName = "nfsu.example.com";
+  };
+  adminPasswordFile = "/run/secrets/nfsu-admin-password";
+  adminTotpFile = "/run/secrets/nfsu-admin-totp";
+};
+security.acme = {
+  acceptTerms = true;
+  defaults.email = "you@example.com";
+};
+```
+
+**Docker.** `compose.yaml` runs the server and Caddy, which serves `site/` with a Let's Encrypt certificate and shares the server's network, so the JSON API stays on `127.0.0.1`:
+
+```sh
+echo DOMAIN=nfsu.example.com > .env
+mkpasswd -m yescrypt > docker/admin-password            # see "Admin login for the website" above
+head -c 20 /dev/urandom | base32 > docker/admin-totp
+sudo chown 10990 docker/admin-password docker/admin-totp   # the server's user in the container
+chmod 400 docker/admin-password docker/admin-totp
+docker compose up -d --build
+```
+
+Edit `docker/nfsu.conf` and `docker/news.txt` for the server's settings and news, then `docker compose restart nfsuserver`. Accounts and stats live in the `data` volume. Point the domain's DNS at the host and keep ports 80 and 443 open for the certificate.
+
+**Another reverse proxy.** Serve `site/` as static files and pass `/api/` on to `127.0.0.1:10990`. The admin login's slowdown needs the visitor's address, so the proxy has to set the `X-Real-IP` header (nginx: `proxy_set_header X-Real-IP $remote_addr;`, Caddy: `header_up X-Real-IP {remote_host}`). The server believes it only from `apiproxyip` (`127.0.0.1` by default).
 
 
 ## Client Configuration
