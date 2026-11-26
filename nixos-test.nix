@@ -48,6 +48,10 @@ pkgs.testers.runNixOSTest {
             serverexternalip = "203.0.113.7";
             welcomemessage = "100% welcome";
             registerglobal = true;
+            trackers = [
+              "tracker-a.test"
+              "http://tracker-b.test"
+            ];
             banv1 = true;
             rooms_ranked_circuit = [
               "Global"
@@ -57,8 +61,8 @@ pkgs.testers.runNixOSTest {
           };
         };
 
-        # The client stands in for the public server list tracker.
-        networking.extraHosts = "${nodes.client.networking.primaryIPAddress} nfsug.harpywar.com";
+        # The client stands in for both public server lists.
+        networking.extraHosts = "${nodes.client.networking.primaryIPAddress} tracker-a.test tracker-b.test";
       };
 
     closed = {
@@ -74,9 +78,9 @@ pkgs.testers.runNixOSTest {
 
         systemd.services.fake-tracker =
           let
-            # log the request line, answer like a web server would
+            # log the request line and the Host header, answer like a web server would
             answer = pkgs.writeShellScript "fake-tracker-answer" ''
-              head -n 1 >> /tmp/tracker.log
+              head -n 2 >> /tmp/tracker.log
               printf 'HTTP/1.0 200 OK\r\n\r\nok'
             '';
           in
@@ -119,6 +123,7 @@ pkgs.testers.runNixOSTest {
             "DisableTimeStamp  1",
             "Verbose           0",
             "RegisterGlobal    1",
+            "Trackers          tracker-a.test,http://tracker-b.test",
             "LogAllTraffic     0",
             "BanV1             1",
             "BanV2             0",
@@ -211,7 +216,9 @@ pkgs.testers.runNixOSTest {
         client.wait_until_succeeds("grep -Fx 1.0.5 /tmp/discovery")
 
     with subtest("registerglobal works from inside the sandbox"):
-        client.wait_until_succeeds("grep -F 'GET /tracker/submit.php' /tmp/tracker.log", timeout=120)
+        for host in ["tracker-a.test", "tracker-b.test"]:
+            client.wait_until_succeeds(f"grep -F 'Host: {host}' /tmp/tracker.log", timeout=120)
+        client.succeed("grep -F 'GET /tracker/submit.php' /tmp/tracker.log")
 
     with subtest("messages that a game never sends do not bring the server down"):
         server.succeed("${badInput} 127.0.0.1")

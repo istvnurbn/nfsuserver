@@ -25,6 +25,7 @@ bool RewriteLogFile;
 bool DisableTimeStamp;
 bool Verbose;
 bool RegisterGlobal;
+char Trackers[100] = ""; // comma separated host names of the server lists, from nfsu.conf
 bool LogAllTraffic;
 
 bool BanV1;
@@ -440,9 +441,8 @@ threadfunc RedirectorWorker(void *Dummy){
 	}
 };
 
-void Subscribe(){
+void Subscribe(char const* trackeraddr){
 	char log[1024];
-	char const* trackeraddr = "nfsug.harpywar.com";
 	struct hostent *hostInfo = gethostbyname(trackeraddr);
 	SOCKADDR_IN remote_sockaddr_in;
 	unsigned long remote_sockaddr_length = sizeof(SOCKADDR_IN);	
@@ -474,7 +474,14 @@ void Subscribe(){
 
 threadfunc WebReport(void *dummy){
 	while(running){
-		Subscribe();
+		std::stringstream list(Trackers);
+		std::string host;
+		while (std::getline(list, host, ',')) {
+			host.erase(std::remove_if(host.begin(), host.end(), ::isspace), host.end());
+			if (host.compare(0, 7, "http://") == 0) host.erase(0, 7); // a URL copied from a browser
+			if (!host.empty() && host[host.size() - 1] == '/') host.erase(host.size() - 1);
+			if (!host.empty()) Subscribe(host.c_str());
+		}
 		Sleep(1000*60);
 	}
 };
@@ -1844,6 +1851,7 @@ bool InitServer(){
 	DisableTimeStamp = readOptionBool("DisableTimeStamp");
 	Verbose = readOptionBool("Verbose");
 	RegisterGlobal = readOptionBool("RegisterGlobal");
+	readOptionStr("Trackers", Trackers);
 	LogAllTraffic = readOptionBool("LogAllTraffic");
 	BanV1 = readOptionBool("BanV1");
 	BanV2 = readOptionBool("BanV2");
@@ -1923,6 +1931,7 @@ bool InitServer(){
 	sprintf(log, "DisableTimeStamp  %d\n", DisableTimeStamp);	Log(log);
 	sprintf(log, "Verbose           %d\n", Verbose);			Log(log);
 	sprintf(log, "RegisterGlobal    %d\n", RegisterGlobal);		Log(log);
+	sprintf(log, "Trackers          %s\n", Trackers);			Log(log);
 	sprintf(log, "LogAllTraffic     %d\n", LogAllTraffic);		Log(log);
 	sprintf(log, "BanV1             %d\n", BanV1);				Log(log);
 	sprintf(log, "BanV2             %d\n", BanV2);				Log(log);
@@ -2075,6 +2084,8 @@ bool InitServer(){
 	_beginthread(ClientReporter, 0, NULL);
 	_beginthread(ClientReporterTcp, 0, NULL);
 	_beginthread(StatThread, 0, NULL);
+	if(RegisterGlobal && Trackers[0] == '\0')
+		Log("[warn] registerglobal is on, but trackers names no server list to announce to.\n");
 	if(RegisterGlobal)
 		_beginthread(WebReport, 0, NULL);
 

@@ -52,6 +52,7 @@ let
     "enablelogfile"
     "rewritelogfile"
     "registerglobal"
+    "trackers"
     "disabletimestamp"
     "verbose"
     "logalltraffic"
@@ -189,10 +190,26 @@ in
           rewritelogfile = mkBool true "Truncate `server.log` on every start instead of appending to it.";
 
           registerglobal = mkBool false ''
-            Announce the server to the public server list of the old launcher
-            (the tracker at `nfsug.harpywar.com`) once a minute. The tracker
-            only lists servers it can reach on TCP port 10800.
+            Announce the server to the public server lists in
+            {option}`services.nfsuserver.settings.trackers` once a minute.
           '';
+
+          trackers = mkOption {
+            type = types.listOf (types.strMatching "(http://)?[A-Za-z0-9.-]+/?");
+            default = [ ];
+            example = [
+              "nfsug.harpywar.com"
+              "http://nfs.onl"
+            ];
+            description = ''
+              Host names of the public server lists (trackers) that
+              {option}`services.nfsuserver.settings.registerglobal` announces
+              to, at `http://<host>/tracker/submit.php`; an `http://` in front
+              is allowed. Launchers such as
+              NFSUServerChanger read these lists. A tracker only lists servers
+              it can reach on TCP port 10800.
+            '';
+          };
 
           disabletimestamp = mkBool true ''
             Do not prefix log lines with the time. On by default (unlike the
@@ -242,6 +259,11 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    warnings = lib.optional (cfg.settings.registerglobal && cfg.settings.trackers == [ ]) ''
+      services.nfsuserver.settings.registerglobal is on, but settings.trackers is
+      empty, so the server is not announced anywhere.
+    '';
+
     assertions =
       map (key: {
         assertion = lib.stringLength (confLine key) <= 100;
