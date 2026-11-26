@@ -151,7 +151,7 @@ security.acme = {
 };
 ```
 
-**Docker.** `compose.yaml` runs the server and Caddy, which serves `site/` with a Let's Encrypt certificate and shares the server's network, so the JSON API stays on `127.0.0.1`:
+**Docker.** `compose.yaml` runs the server and Caddy, which serves `site/` with a Let's Encrypt certificate. They share a network of their own (`172.30.99.0/24`; change it in `compose.yaml` and `docker/nfsu.conf` if it clashes), on which only Caddy reaches the JSON API:
 
 ```sh
 echo DOMAIN=nfsu.example.com > .env

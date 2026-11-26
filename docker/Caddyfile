@@ -6,7 +6,7 @@
 		Referrer-Policy no-referrer
 	}
 	handle /api/* {
-		reverse_proxy 127.0.0.1:10990 {
+		reverse_proxy nfsuserver:10990 {
 			# the admin login slows down guessing per visitor address
 			header_up X-Real-IP {remote_host}
 		}

@@ -1,5 +1,6 @@
 # The lobby server and its website: Caddy serves site/ with a Let's Encrypt
-# certificate and passes /api/ on to the server. Setup: "Docker" in README.md.
+# certificate and passes /api/ on to the server. Setup: "Running the website"
+# in README.md.
 
 services:
   nfsuserver:
@@ -11,10 +12,9 @@ services:
       - "10800:10800"
       - "10800:10800/udp"
       - "10980:10980"
-      # the website: Caddy shares this container's network
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      # the JSON API (10990) stays on the web network, for Caddy only
+    networks:
+      - web
     volumes:
       - data:/data
       - ./docker/nfsu.conf:/data/nfsu.conf:ro
@@ -26,8 +26,14 @@ services:
   web:
     image: docker.io/library/caddy:2
     restart: unless-stopped
-    # the server's network: the JSON API stays on 127.0.0.1, where it trusts X-Real-IP
-    network_mode: service:nfsuserver
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    networks:
+      web:
+        # apiproxyip in docker/nfsu.conf: the only address whose X-Real-IP the server believes
+        ipv4_address: 172.30.99.3
     environment:
       DOMAIN: ${DOMAIN:?put DOMAIN=your.domain in .env}
     volumes:
@@ -35,6 +41,15 @@ services:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+
+# Its own network, so either container can restart without cutting off the
+# other. Change the subnet if it clashes with one on the host, and the two
+# addresses with it.
+networks:
+  web:
+    ipam:
+      config:
+        - subnet: 172.30.99.0/24
 
 secrets:
   admin-password:
