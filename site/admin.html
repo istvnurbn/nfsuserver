@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin · NFSU lobby server</title>
+<link rel="stylesheet" href="style.css">
+<script src="admin.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><span class="mark">NFSU</span><span>Admin</span></a>
+  <nav aria-label="Admin">
+    <a href="./">Public site</a>
+    <button id="logout" class="link" type="button" hidden>Log out</button>
+  </nav>
+</header>
+
+<main>
+  <section id="login" class="view" hidden>
+    <h1>Admin login</h1>
+    <form id="login-form" class="panel narrow">
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <label for="code">Code from the authenticator app</label>
+      <input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+      <button type="submit">Log in</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </section>
+
+  <section id="panel" class="view" hidden>
+    <h1>Admin</h1>
+
+    <div class="panel">
+      <h2>Players</h2>
+      <p class="lead" id="players-count"></p>
+      <label for="filter">Filter by account or persona</label>
+      <input id="filter" type="search" autocomplete="off">
+      <p class="lead">Click a player to set a new password or delete them.</p>
+      <p id="players-result" role="status"></p>
+      <div class="scroll"><table id="players">
+        <thead><tr><th scope="col">Account</th><th scope="col">Personas</th><th scope="col">Created</th><th scope="col">Last login</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+
+      <h2>Add a player</h2>
+      <form id="add-form">
+        <div class="row">
+          <div><label for="new-account">Account</label><input id="new-account" pattern="[A-Za-z0-9]{4,16}" title="4-16 letters and digits" autocomplete="off" required></div>
+          <div><label for="add-password">Password</label><input id="add-password" pattern="[A-Za-z0-9]{4,16}" title="4-16 letters and digits" autocomplete="new-password"></div>
+        </div>
+        <div class="row">
+          <button type="submit">Add player</button>
+          <button type="button" id="add-generate" class="secondary">Generate password</button>
+        </div>
+        <p id="add-result" role="status"></p>
+      </form>
+      <p class="lead">Passwords are 4–16 letters and digits. The player logs in with the account and creates their personas in the game.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Server log</h2>
+      <p class="lead">The last 500 lines since the server started, refreshed every 10 seconds.</p>
+      <pre id="log" class="log" tabindex="0"></pre>
+    </div>
+
+    <div class="panel">
+      <h2>Configuration</h2>
+      <p class="lead">nfsu.conf, read-only.</p>
+      <pre id="config" class="log" tabindex="0"></pre>
+    </div>
+  </section>
+</main>
+</body>
+</html>
