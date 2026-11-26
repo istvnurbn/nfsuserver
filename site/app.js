@@ -77,7 +77,7 @@ async function loadStatus() {
   try {
     state.status = await api('status');
     document.getElementById('server-name').textContent = state.status.name;
-    document.title = state.status.name + ' · NFSU lobby server';
+    document.title = state.status.name;
     setOnline(true);
   } catch (e) {
     setOnline(false);
