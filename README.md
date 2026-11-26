@@ -109,6 +109,14 @@ Port 10990 TCP is the JSON API for the website (`apiip`, `127.0.0.1` by default)
 
 The race itself is played peer to peer between the games of the players and does not pass through the server. For that the player who hosts needs port 3658 UDP, see [Client Configuration](#client-configuration). It is not a port of the server.
 
+### Server lists
+
+A new server is listed nowhere; each of these is a setting in `nfsu.conf` (NixOS: `services.nfsuserver.settings`), empty by default:
+
+* **Public server lists** that launchers such as NFSUServerChanger read: `registerglobal = 1` and `trackers = nfsug.harpywar.com,nfs.onl`. The server announces itself to each once a minute, and the lists check port 10800.
+* **nfs.onl's network rankings and track records:** `statsport = 10880` answers rank and record requests there (open the port), and `infocentral = nfs.onl:10881` announces it once a minute. nfs.onl drops the server five minutes after the last announcement.
+* **nfsu.online** monitors a list of servers its admin keeps, through port 10980. Ask there (its site links its Discord) to be added.
+
 ### Players in the network of the server
 
 The server tells every game where to find the others, and what it tells depends on who it is for:
