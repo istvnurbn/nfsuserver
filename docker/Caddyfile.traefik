@@ -1,0 +1,28 @@
+# Caddy behind Traefik (compose.traefik.yaml): plain HTTP, Traefik does HTTPS.
+{
+	auto_https off
+	servers {
+		# only containers reach Caddy here; Traefik puts the visitor's address in X-Real-Ip
+		trusted_proxies static private_ranges
+		client_ip_headers X-Real-Ip
+	}
+}
+
+:80 {
+	encode gzip
+	header {
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+	handle /api/* {
+		reverse_proxy nfsuserver:10990 {
+			# the admin login slows down guessing per visitor address
+			header_up X-Real-IP {client_ip}
+		}
+	}
+	handle {
+		root * /srv
+		file_server
+	}
+}

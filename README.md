@@ -169,6 +169,16 @@ Set `serverexternalip` in `docker/nfsu.conf` before players connect. The game fi
 
 Edit `docker/nfsu.conf` and `docker/news.txt` for the server's settings and news, then `docker compose restart nfsuserver`. Accounts and stats live in the `data` volume. Point the domain's DNS at the host and keep ports 80 and 443 open for the certificate.
 
+**Docker behind Traefik.** Where Traefik already serves HTTPS for other containers, add `compose.traefik.yaml`: Caddy then publishes no ports, joins Traefik's network and serves the site in plain HTTP behind it (`docker/Caddyfile.traefik`), taking the visitor's address from Traefik's `X-Real-Ip` header. Traefik keeps 80 and 443 and gets the certificate with its own resolver:
+
+```sh
+printf 'DOMAIN=nfsu.example.com\nTRAEFIK_CERTRESOLVER=letsencrypt\n' > .env   # your resolver's name
+# also TRAEFIK_NETWORK and TRAEFIK_ENTRYPOINT if yours aren't "proxy" and "websecure"
+docker compose -f compose.yaml -f compose.traefik.yaml up -d --build
+```
+
+The game ports are published by Docker, which opens them past UFW; no UFW rules are needed for them.
+
 **Another reverse proxy.** Serve `site/` as static files and pass `/api/` on to `127.0.0.1:10990`. The admin login's slowdown needs the visitor's address, so the proxy has to set the `X-Real-IP` header (nginx: `proxy_set_header X-Real-IP $remote_addr;`, Caddy: `header_up X-Real-IP {remote_host}`). The server believes it only from `apiproxyip` (`127.0.0.1` by default).
 
 

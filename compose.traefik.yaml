@@ -1,0 +1,25 @@
+# For a host where Traefik already serves HTTPS: Caddy publishes no ports and
+# serves the site behind Traefik instead of getting its own certificate.
+#   docker compose -f compose.yaml -f compose.traefik.yaml up -d --build
+# .env: DOMAIN, TRAEFIK_CERTRESOLVER, and TRAEFIK_NETWORK / TRAEFIK_ENTRYPOINT
+# when they aren't "proxy" / "websecure".
+
+services:
+  web:
+    ports: !reset []
+    networks:
+      - proxy
+    volumes:
+      - ./docker/Caddyfile.traefik:/etc/caddy/Caddyfile:ro
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-proxy}
+      traefik.http.routers.nfsu.rule: Host(`${DOMAIN}`)
+      traefik.http.routers.nfsu.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.nfsu.tls.certresolver: ${TRAEFIK_CERTRESOLVER:?put TRAEFIK_CERTRESOLVER=<Traefik's resolver> in .env}
+      traefik.http.services.nfsu.loadbalancer.server.port: "80"
+
+networks:
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK:-proxy}
