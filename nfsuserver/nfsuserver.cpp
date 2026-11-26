@@ -460,12 +460,16 @@ void Subscribe(){
 
 	SOCKET sock=socket(AF_INET, SOCK_STREAM, 0);
 	if(sock==INVALID_SOCKET) return;
+	// a tracker that doesn't answer must not hold up the others; on Linux SO_SNDTIMEO limits connect() too
+	timeval timeout = { 10, 0 };
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 	if(connect(sock, (const sockaddr*)&remote_sockaddr_in, remote_sockaddr_length)==0){
-		sprintf(buf, "GET /tracker/submit.php HTTP/1.1\x0d\x0aHost: %s\x0d\x0a\x0d\x0a", trackeraddr);
+		snprintf(buf, sizeof(buf), "GET /tracker/submit.php HTTP/1.1\x0d\x0aHost: %s\x0d\x0a\x0d\x0a", trackeraddr);
 		send(sock, buf, strlen(buf), 0);
 		recv(sock, buf, 1024, 0);
-		closesocket(sock);
 	}
+	closesocket(sock);
 }
 
 threadfunc WebReport(void *dummy){
